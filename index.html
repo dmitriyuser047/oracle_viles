@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Велес — AI Оракул</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #08080f;
+    color: #e8e4f0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+
+  .app {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: radial-gradient(ellipse at 50% -10%, #1c1050 0%, #08080f 60%);
+  }
+
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .star {
+    position: absolute; background: #fff; border-radius: 50%;
+    animation: twinkle 3s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle { 0% { opacity: 0.15; } 100% { opacity: 0.6; } }
+
+  .screen { display: none; flex-direction: column; flex: 1; position: relative; z-index: 1; }
+  .screen.active { display: flex; }
+
+  .header {
+    text-align: center;
+    padding: 52px 20px 14px;
+    position: relative;
+  }
+  .header::after {
+    content: '';
+    position: absolute; bottom: 0; left: 16px; right: 16px;
+    height: 0.5px; background: linear-gradient(90deg, transparent, rgba(120,90,200,0.15), transparent);
+  }
+  .header-label {
+    font-size: 9px; letter-spacing: 4px; color: #7b6baa;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .header-title {
+    font-size: 26px; font-weight: 600; color: #e8e4f0;
+    letter-spacing: 1px;
+  }
+  .header-sub {
+    font-size: 12px; color: #6a5a9a; margin-top: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .header-sub::before, .header-sub::after {
+    content: ''; width: 16px; height: 0.5px; background: #3a2a6a;
+  }
+
+  /* Chat */
+  .chat-area {
+    flex: 1; overflow-y: auto; padding: 16px 16px 8px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  .msg { margin-bottom: 14px; animation: fadeUp 0.5s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg-oracle {
+    background: linear-gradient(145deg, rgba(30,20,70,0.9) 0%, rgba(18,12,45,0.9) 100%);
+    border: 0.5px solid rgba(100,70,180,0.2);
+    border-radius: 18px 18px 18px 4px;
+    padding: 16px 18px; max-width: 90%;
+    backdrop-filter: blur(10px);
+  }
+  .msg-oracle p { font-size: 14.5px; color: #ccc4e4; line-height: 1.7; }
+  .msg-oracle .accent { color: #c4b0f0; font-weight: 500; }
+  .msg-oracle .meta {
+    font-size: 10px; color: #5a4a80; margin-top: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .msg-oracle .meta-dot {
+    width: 5px; height: 5px;
+    background: #7b6baa; border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+  .msg-user-wrap { display: flex; justify-content: flex-end; margin-bottom: 14px; animation: fadeUp 0.3s ease; }
+  .msg-user {
+    background: linear-gradient(135deg, #2e2070, #241868);
+    border: 0.5px solid rgba(80,60,160,0.3);
+    border-radius: 18px 18px 4px 18px;
+    padding: 12px 18px; max-width: 82%;
+    font-size: 14.5px; color: #dcd4f4; line-height: 1.55;
+  }
+
+  /* Pattern card */
+  .pattern-card {
+    background: linear-gradient(145deg, rgba(35,20,75,0.95) 0%, rgba(25,14,55,0.95) 100%);
+    border: 0.5px solid rgba(120,80,220,0.25);
+    border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 14px;
+    animation: fadeUp 0.6s ease;
+  }
+  .pattern-card .label {
+    font-size: 9px; color: #9b8bca; letter-spacing: 3px;
+    text-transform: uppercase; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pattern-icon {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(120,80,220,0.15); border: 1px solid rgba(120,80,220,0.3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pattern-icon-inner {
+    width: 6px; height: 6px; background: #9b8bca; border-radius: 50%;
+  }
+  .pattern-card p { font-size: 13.5px; color: #a098c0; line-height: 1.6; }
+  .pattern-card .hl { color: #e0d0ff; font-weight: 500; }
+
+  /* Viral card */
+  .viral-card {
+    background: rgba(100,70,180,0.05);
+    border: 0.5px solid rgba(100,70,180,0.12);
+    border-radius: 16px; padding: 16px 18px; margin-bottom: 14px;
+    animation: fadeUp 0.6s ease 0.2s both;
+  }
+  .viral-card p { font-size: 13.5px; color: #8a7ab8; line-height: 1.6; margin-bottom: 12px; }
+  .viral-btns { display: flex; gap: 8px; }
+  .viral-btns button {
+    flex: 1; padding: 11px; border-radius: 12px;
+    font-size: 13.5px; border: none; cursor: pointer;
+    transition: all 0.2s; font-family: inherit; font-weight: 500;
+  }
+  .viral-btns button:active { transform: scale(0.96); }
+  .btn-send {
+    background: linear-gradient(135deg, rgba(120,80,220,0.25), rgba(100,60,200,0.15));
+    color: #c4b0f0;
+    border: 0.5px solid rgba(120,80,220,0.3) !important;
+  }
+  .btn-later { background: transparent; color: #4a4470; border: 0.5px solid rgba(100,70,180,0.1) !important; }
+
+  /* Input bar */
+  .input-bar {
+    padding: 10px 16px 30px; display: flex; gap: 10px;
+    align-items: center;
+    background: linear-gradient(transparent 0%, #08080f 50%);
+    position: sticky; bottom: 0;
+  }
+  .input-bar input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(100,70,180,0.15); border-radius: 24px;
+    padding: 13px 20px; font-size: 14.5px; color: #e8e4f0;
+    outline: none; font-family: inherit;
+    transition: all 0.2s;
+  }
+  .input-bar input::placeholder { color: #3e3860; }
+  .input-bar input:focus { border-color: rgba(120,80,220,0.4); background: rgba(255,255,255,0.06); }
+  .send-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(145deg, #7b5fd0, #5a3fa8);
+    border: none; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    transition: all 0.2s; flex-shrink: 0;
+  }
+  .send-btn:active { transform: scale(0.88); }
+  .send-btn:hover { box-shadow: 0 0 24px rgba(120,80,220,0.5); }
+  .send-btn svg { width: 18px; height: 18px; }
+
+  /* Typing */
+  .typing { display: flex; gap: 5px; padding: 16px 18px; align-items: center; }
+  .typing span {
+    width: 7px; height: 7px; background: #7b6baa; border-radius: 50%;
+    animation: bounce 1.4s ease-in-out infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.25; } 40% { transform: translateY(-10px); opacity: 1; } }
+
+  /* Bottom nav */
+  .nav {
+    display: flex; justify-content: space-around;
+    padding: 8px 8px 26px;
+    border-top: 0.5px solid rgba(100,70,180,0.06);
+    position: sticky; bottom: 0; z-index: 10;
+    background: rgba(8,8,15,0.95);
+    backdrop-filter: blur(12px);
+  }
+  .nav-item {
+    text-align: center; cursor: pointer;
+    padding: 6px 14px; border-radius: 14px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .nav-item:active { background: rgba(120,80,220,0.1); }
+  .nav-item svg { width: 24px; height: 24px; margin-bottom: 2px; }
+  .nav-item .nav-label { font-size: 10px; color: #3e3860; font-weight: 500; }
+  .nav-item.active .nav-label { color: #b8a8e8; }
+  .nav-item.active svg { color: #b8a8e8; }
+  .nav-item svg { color: #3e3860; transition: color 0.2s; }
+  .nav-dot {
+    position: absolute; top: 4px; right: 12px;
+    width: 6px; height: 6px; background: #7b5fd0;
+    border-radius: 50%; display: none;
+  }
+
+  /* Onboarding */
+  .onboarding {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 28px; text-align: center;
+  }
+  .eye-symbol { margin-bottom: 28px; position: relative; }
+  .eye-glow {
+    position: absolute; inset: -20px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(120,80,220,0.15) 0%, transparent 70%);
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+  @keyframes glowPulse { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  .onboarding h1 {
+    font-size: 36px; font-weight: 700; margin-bottom: 6px; color: #e8e4f0;
+    letter-spacing: 2px;
+  }
+  .onboarding .subtitle {
+    font-size: 14px; color: #6a5a9a; margin-bottom: 44px; line-height: 1.6;
+  }
+  .onboarding .form-group { width: 100%; margin-bottom: 14px; position: relative; }
+  .onboarding .form-label {
+    font-size: 11px; color: #6a5a9a; letter-spacing: 1px;
+    text-transform: uppercase; text-align: left;
+    margin-bottom: 6px; display: block; padding-left: 4px;
+  }
+  .onboarding input {
+    width: 100%; background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(100,70,180,0.15); border-radius: 14px;
+    padding: 15px 18px; font-size: 16px; color: #e8e4f0;
+    outline: none; font-family: inherit;
+    transition: all 0.2s;
+  }
+  .onboarding input::placeholder { color: #3e3860; }
+  .onboarding input:focus { border-color: rgba(120,80,220,0.4); background: rgba(255,255,255,0.06); }
+  .start-btn {
+    width: 100%; padding: 17px;
+    background: linear-gradient(145deg, #7b5fd0, #5a3fa8);
+    border: none; border-radius: 16px;
+    color: #f0ecf8; font-size: 16px; font-weight: 600;
+    cursor: pointer; margin-top: 12px;
+    transition: all 0.2s;
+    font-family: inherit; letter-spacing: 0.5px;
+  }
+  .start-btn:active { transform: scale(0.97); }
+  .start-btn:hover { box-shadow: 0 6px 30px rgba(120,80,220,0.45); }
+  .onboarding .hint {
+    font-size: 11px; color: #4a3a70; margin-top: 20px; line-height: 1.5;
+  }
+
+  /* Diary */
+  .diary-list { flex: 1; padding: 0 16px; overflow-y: auto; padding-bottom: 80px; }
+  .diary-patterns {
+    margin-bottom: 18px;
+  }
+  .diary-section-label {
+    font-size: 9px; color: #7b6baa; letter-spacing: 3px;
+    text-transform: uppercase; margin: 0 2px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .diary-pattern {
+    background: linear-gradient(145deg, rgba(40,25,85,0.95), rgba(18,12,45,0.95));
+    border: 0.5px solid rgba(140,100,240,0.22);
+    border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 10px;
+  }
+  .diary-pattern-top {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-bottom: 8px;
+  }
+  .diary-pattern-title { font-size: 14px; color: #e0d0ff; font-weight: 600; }
+  .diary-pattern-count {
+    font-size: 11px; color: #b8a8e8; padding: 4px 8px;
+    border-radius: 999px; background: rgba(120,80,220,0.12);
+    border: 0.5px solid rgba(120,80,220,0.22);
+    flex-shrink: 0;
+  }
+  .diary-pattern-desc { font-size: 13.5px; color: #a098c0; line-height: 1.55; margin-bottom: 10px; }
+  .diary-pattern-advice {
+    font-size: 12.5px; color: #c8c0e0; line-height: 1.5;
+    padding-top: 10px; border-top: 0.5px solid rgba(100,70,180,0.1);
+  }
+  .diary-pattern-empty {
+    background: rgba(100,70,180,0.05);
+    border: 0.5px solid rgba(100,70,180,0.12);
+    border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 18px;
+    font-size: 13.5px; color: #7a6aa8; line-height: 1.6;
+  }
+  .diary-entry {
+    background: linear-gradient(145deg, rgba(30,20,70,0.9), rgba(18,12,45,0.9));
+    border: 0.5px solid rgba(100,70,180,0.15);
+    border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 10px;
+  }
+  .diary-entry .date {
+    font-size: 11px; color: #7b6baa; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .diary-entry .date::before {
+    content: ''; width: 4px; height: 4px; background: #7b6baa;
+    border-radius: 50%;
+  }
+  .diary-entry .text { font-size: 14px; color: #c8c0e0; line-height: 1.55; }
+  .diary-entry .transit {
+    font-size: 11px; color: #4a3a70; margin-top: 10px;
+    padding-top: 10px; border-top: 0.5px solid rgba(100,70,180,0.08);
+    display: flex; gap: 12px;
+  }
+
+  .add-entry-btn {
+    position: fixed; bottom: 84px; right: calc(50% - 215px + 16px);
+    width: 52px; height: 52px; border-radius: 16px;
+    background: linear-gradient(145deg, #7b5fd0, #5a3fa8);
+    border: none; cursor: pointer; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 24px rgba(120,80,220,0.4);
+    transition: all 0.2s;
+    font-size: 22px; color: #f0ecf8;
+  }
+  .add-entry-btn:active { transform: scale(0.9); }
+
+  /* Profile */
+  .profile-content { flex: 1; padding: 0 16px; overflow-y: auto; padding-bottom: 20px; }
+  .profile-header {
+    text-align: center; margin-bottom: 20px;
+  }
+  .profile-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(145deg, rgba(120,80,220,0.2), rgba(80,50,180,0.1));
+    border: 1px solid rgba(120,80,220,0.2);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px; font-size: 28px;
+  }
+  .profile-name { font-size: 18px; font-weight: 600; color: #e8e4f0; }
+  .profile-sign { font-size: 13px; color: #7b6baa; margin-top: 2px; }
+
+  .profile-card {
+    background: linear-gradient(145deg, rgba(30,20,70,0.9), rgba(18,12,45,0.9));
+    border: 0.5px solid rgba(100,70,180,0.15);
+    border-radius: 16px;
+    padding: 18px; margin-bottom: 12px;
+  }
+  .profile-card .card-label {
+    font-size: 9px; letter-spacing: 3px; color: #7b6baa;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 0.5px solid rgba(100,70,180,0.06);
+  }
+  .stat-row:last-child { border: none; }
+  .stat-label { font-size: 13.5px; color: #8a7aaa; }
+  .stat-value { font-size: 13.5px; color: #ccc4e4; font-weight: 500; }
+  .stat-value.warn { color: #e8a888; }
+  .stat-value.good { color: #88d8b8; }
+  .stat-value.accent { color: #c4b0f0; }
+
+  /* Bonds */
+  .bonds-content { flex: 1; padding: 0 16px; overflow-y: auto; }
+  .bond-empty { text-align: center; padding: 60px 20px; }
+  .bond-empty-icon {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(120,80,220,0.06);
+    border: 0.5px solid rgba(120,80,220,0.1);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .bond-empty p { font-size: 14.5px; color: #6a5a9a; line-height: 1.65; margin-bottom: 24px; }
+  .invite-btn {
+    padding: 15px 36px;
+    background: linear-gradient(145deg, #7b5fd0, #5a3fa8);
+    border: none; border-radius: 14px;
+    color: #f0ecf8; font-size: 15px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.2s; letter-spacing: 0.3px;
+  }
+  .invite-btn:active { transform: scale(0.96); }
+  .invite-btn:hover { box-shadow: 0 6px 24px rgba(120,80,220,0.4); }
+
+  .screen-title {
+    font-size: 22px; font-weight: 600; color: #e8e4f0;
+    padding: 52px 20px 20px; text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(145deg, #2e2070, #241868);
+    color: #c4b0f0; padding: 12px 24px; border-radius: 14px;
+    font-size: 14px; z-index: 99; animation: fadeUp 0.3s ease;
+    border: 0.5px solid rgba(120,80,220,0.3);
+    font-weight: 500;
+  }
+
+  /* Matrix diagram */
+  .matrix-wrap {
+    padding: 8px 0 16px; text-align: center;
+  }
+  .matrix-wrap svg { max-width: 100%; height: auto; }
+  .matrix-node-circle { fill: rgba(120,80,220,0.15); stroke: rgba(120,80,220,0.4); stroke-width: 1.5; }
+  .matrix-node-center { fill: rgba(120,80,220,0.25); stroke: rgba(180,140,255,0.5); stroke-width: 2; }
+  .matrix-num { fill: #c4b0f0; font-size: 14px; font-weight: 700; font-family: inherit; }
+  .matrix-label { fill: #6a5a9a; font-size: 8px; font-family: inherit; letter-spacing: 0.5px; }
+  .matrix-line { stroke: rgba(120,80,220,0.2); stroke-width: 1; }
+  .matrix-line-main { stroke: rgba(120,80,220,0.35); stroke-width: 1.5; }
+
+  /* Daily forecast */
+  .forecast-card {
+    background: linear-gradient(145deg, rgba(40,25,85,0.95) 0%, rgba(20,12,50,0.95) 100%);
+    border: 0.5px solid rgba(140,100,240,0.25);
+    border-radius: 18px;
+    padding: 20px 18px; margin-bottom: 16px;
+    animation: fadeUp 0.6s ease;
+  }
+  .forecast-header {
+    font-size: 9px; letter-spacing: 3px; color: #9b8bca;
+    text-transform: uppercase; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .forecast-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 0.5px solid rgba(100,70,180,0.08);
+  }
+  .forecast-row:last-child { border: none; }
+  .forecast-key { font-size: 12px; color: #8a7aaa; }
+  .forecast-val { font-size: 12px; color: #c4b0f0; font-weight: 500; }
+  .forecast-advice {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 0.5px solid rgba(100,70,180,0.12);
+    font-size: 13.5px; color: #a098c0; line-height: 1.65;
+    font-style: italic;
+  }
+
+  @media (max-width: 430px) {
+    .add-entry-btn { right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="stars" id="stars"></div>
+
+  <!-- ОНБОРДИНГ -->
+  <div class="screen active" id="screen-onboard">
+    <div class="onboarding">
+      <div class="eye-symbol">
+        <div class="eye-glow"></div>
+        <svg width="88" height="88" viewBox="0 0 88 88">
+          <circle cx="44" cy="44" r="32" fill="none" stroke="#6a50b0" stroke-width="0.5" opacity="0.3"/>
+          <circle cx="44" cy="44" r="24" fill="none" stroke="#8a70d0" stroke-width="0.5" opacity="0.2"/>
+          <ellipse cx="44" cy="44" rx="16" ry="9" fill="none" stroke="#b8a0e8" stroke-width="1.2"/>
+          <circle cx="44" cy="44" r="5" fill="#b8a0e8"/>
+          <circle cx="44" cy="44" r="2" fill="#08080f"/>
+          <circle cx="42" cy="42" r="1" fill="rgba(255,255,255,0.4)"/>
+        </svg>
+      </div>
+      <h1>Велес</h1>
+      <div class="subtitle">Оракул, который знает тебя.<br>Расскажи, когда ты родился.</div>
+      <div class="form-group">
+        <label class="form-label">Твоё имя</label>
+        <input type="text" id="nameInput" placeholder="Как тебя зовут?">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Дата рождения</label>
+        <input type="date" id="birthInput" style="color-scheme: dark;">
+      </div>
+      <button class="start-btn" onclick="startApp()">Открыть глаз</button>
+      <div class="hint">Данные нужны для расчёта натальной карты<br>и нумерологического профиля</div>
+    </div>
+  </div>
+
+  <!-- ОРАКУЛ -->
+  <div class="screen" id="screen-oracle">
+    <div class="header">
+      <div class="header-label">Оракул</div>
+      <div class="header-title">Велес</div>
+      <div class="header-sub" id="userSign"></div>
+    </div>
+    <div class="chat-area" id="chatArea"></div>
+    <div class="input-bar">
+      <input type="text" id="msgInput" placeholder="Расскажи оракулу, что произошло...">
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 18 18" fill="none"><path d="M3 15L15 3M15 3H7M15 3V11" stroke="#f0ecf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ДНЕВНИК -->
+  <div class="screen" id="screen-diary">
+    <div class="screen-title">Дневник</div>
+    <div class="diary-list" id="diaryList"></div>
+    <button class="add-entry-btn" onclick="addDiaryEntry()" style="display:none;" id="addEntryBtn">+</button>
+  </div>
+
+  <!-- СВЯЗИ -->
+  <div class="screen" id="screen-bonds">
+    <div class="screen-title">Связи</div>
+    <div class="bonds-content">
+      <div class="bond-empty">
+        <div class="bond-empty-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="12" cy="14" r="5" stroke="#7b6baa" stroke-width="1"/>
+            <circle cx="24" cy="14" r="5" stroke="#7b6baa" stroke-width="1"/>
+            <path d="M17 14 Q18 11 19 14" stroke="#7b6baa" stroke-width="0.7" fill="none" stroke-dasharray="2 2"/>
+            <path d="M5 30Q5 22 12 22Q15 22 18 24Q21 22 24 22Q31 22 31 30" stroke="#7b6baa" stroke-width="0.7" fill="none"/>
+          </svg>
+        </div>
+        <p>Оракул видит нити между людьми.<br>Позови близкого человека — я раскрою, что вас связывает.</p>
+        <button class="invite-btn" onclick="shareLink()">Пригласить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРОФИЛЬ -->
+  <div class="screen" id="screen-profile">
+    <div class="screen-title">Профиль</div>
+    <div class="profile-content" id="profileContent"></div>
+  </div>
+
+  <!-- НАВИГАЦИЯ -->
+  <div class="nav" id="mainNav" style="display:none;">
+    <div class="nav-item active" onclick="switchScreen('oracle')">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+      <div class="nav-label">Оракул</div>
+    </div>
+    <div class="nav-item" onclick="switchScreen('diary')">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2.5" stroke="currentColor" stroke-width="1.2"/><line x1="8" y1="8" x2="16" y2="8" stroke="currentColor" stroke-width="0.8"/><line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="0.8"/><line x1="8" y1="16" x2="13" y2="16" stroke="currentColor" stroke-width="0.8"/></svg>
+      <div class="nav-label">Дневник</div>
+      <div class="nav-dot" id="diaryDot"></div>
+    </div>
+    <div class="nav-item" onclick="switchScreen('bonds')">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="9" r="3.5" stroke="currentColor" stroke-width="1.2"/><circle cx="16" cy="9" r="3.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 21Q2 15 8 15Q10.5 15 12 16.5Q13.5 15 16 15Q22 15 22 21" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+      <div class="nav-label">Связи</div>
+    </div>
+    <div class="nav-item" onclick="switchScreen('profile')">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M4 21Q4 14 12 14Q20 14 20 21" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+      <div class="nav-label">Профиль</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let userName = '';
+let userBirth = null;
+let userSign = '';
+let userSignIdx = 0;
+let events = [];
+let userBirthValue = '';
+
+function saveToStorage() {
+  try {
+    localStorage.setItem('veles_user', JSON.stringify({
+      name: userName,
+      birth: userBirthValue,
+      events: events.map(function(e) { return { text: e.text, ts: e.date.getTime() }; })
+    }));
+  } catch(e) {}
+}
+
+function loadFromStorage() {
+  try {
+    var data = JSON.parse(localStorage.getItem('veles_user'));
+    if (data && data.name && data.birth) {
+      userName = data.name;
+      userBirthValue = data.birth;
+      userBirth = new Date(data.birth);
+      if (data.events) {
+        events = data.events.map(function(e) { return { text: e.text, date: new Date(e.ts) }; });
+      }
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function clearStorage() {
+  try { localStorage.removeItem('veles_user'); } catch(e) {}
+  userName = '';
+  userBirth = null;
+  userSign = '';
+  userSignIdx = 0;
+  events = [];
+  userBirthValue = '';
+  document.getElementById('screen-profile').classList.remove('active');
+  document.getElementById('screen-oracle').classList.remove('active');
+  document.getElementById('screen-onboard').classList.add('active');
+  document.getElementById('mainNav').style.display = 'none';
+  document.getElementById('chatArea').innerHTML = '';
+  document.getElementById('nameInput').value = '';
+  document.getElementById('birthInput').value = '';
+}
+
+const signsRu = ['Овен','Телец','Близнецы','Рак','Лев','Дева','Весы','Скорпион','Стрелец','Козерог','Водолей','Рыбы'];
+const signSymbols = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+const elements = ['Огонь','Земля','Воздух','Вода','Огонь','Земля','Воздух','Вода','Огонь','Земля','Воздух','Вода'];
+const qualities = ['Кардинальный','Фиксированный','Мутабельный','Кардинальный','Фиксированный','Мутабельный','Кардинальный','Фиксированный','Мутабельный','Кардинальный','Фиксированный','Мутабельный'];
+const planets = ['Марс','Венера','Меркурий','Луна','Солнце','Меркурий','Венера','Плутон','Юпитер','Сатурн','Уран','Нептун'];
+
+function getZodiac(month, day) {
+  const cutoffs = [
+    [1,20,10],[2,19,11],[3,21,0],[4,20,1],[5,21,2],[6,21,3],
+    [7,23,4],[8,23,5],[9,23,6],[10,23,7],[11,22,8],[12,22,9]
+  ];
+  var sign = cutoffs[month-1][2];
+  if (day < cutoffs[month-1][1]) sign = (sign + 11) % 12;
+  return sign;
+}
+
+function lifePathNumber(dateStr) {
+  let sum = dateStr.replace(/-/g,'').split('').reduce((a,b) => a + parseInt(b), 0);
+  while (sum > 9 && sum !== 11 && sum !== 22 && sum !== 33) {
+    sum = String(sum).split('').reduce((a,b) => a + parseInt(b), 0);
+  }
+  return sum;
+}
+
+function reduceNum(n) {
+  while (n > 9 && n !== 11 && n !== 22 && n !== 33) {
+    n = String(n).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  }
+  return n;
+}
+
+function cyrNumValue(ch) {
+  var c = ch.toLowerCase();
+  var cyr = 'абвгдежзиклмнопрстуфхцчшщъыьэюя';
+  var lat = 'abcdefghijklmnopqrstuvwxyz';
+  var idx = cyr.indexOf(c);
+  if (idx >= 0) return (idx % 9) + 1;
+  idx = lat.indexOf(c);
+  if (idx >= 0) return (idx % 9) + 1;
+  return 0;
+}
+
+function destinyNumber(name) {
+  var sum = name.split('').reduce(function(a,c) { return a + cyrNumValue(c); }, 0);
+  return reduceNum(sum);
+}
+
+function soulNumber(name) {
+  var vowels = 'аеёиоуыэюяaeiou';
+  var sum = name.toLowerCase().split('').filter(function(c) { return vowels.indexOf(c) >= 0; }).reduce(function(a,c) { return a + cyrNumValue(c); }, 0);
+  return reduceNum(sum);
+}
+
+function personalityNum(name) {
+  var vowels = 'аеёиоуыэюяaeiou';
+  var all = 'абвгдежзиклмнопрстуфхцчшщэюяabcdefghijklmnopqrstuvwxyz';
+  var sum = name.toLowerCase().split('').filter(function(c) { return all.indexOf(c) >= 0 && vowels.indexOf(c) < 0; }).reduce(function(a,c) { return a + cyrNumValue(c); }, 0);
+  return reduceNum(sum);
+}
+
+function birthdayNum(day) { return reduceNum(day); }
+
+function maturityNum(lifePath, destiny) { return reduceNum(lifePath + destiny); }
+
+function personalYear(bDay, bMonth) {
+  var y = new Date().getFullYear();
+  var digits = String(bDay) + String(bMonth) + String(y);
+  return reduceNum(digits.split('').reduce(function(a,b) { return a + parseInt(b); }, 0));
+}
+
+function personalMonth(bDay, bMonth) {
+  var py = personalYear(bDay, bMonth);
+  return reduceNum(py + new Date().getMonth() + 1);
+}
+
+function personalDay(bDay, bMonth) {
+  var pm = personalMonth(bDay, bMonth);
+  return reduceNum(pm + new Date().getDate());
+}
+
+function reduceToRange(n, max) {
+  while (n > max) {
+    n = String(n).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  }
+  return n <= 0 ? max : n;
+}
+
+const sephirot = [
+  { name:'Кетер', meaning:'замысел, высшая воля, чистое намерение', practice:'сформулируй одно намерение без лишних условий' },
+  { name:'Хокма', meaning:'озарение, импульс, первое видение пути', practice:'поймай первую ясную мысль и не перегружай её сомнениями' },
+  { name:'Бина', meaning:'форма, граница, зрелое понимание', practice:'дай мысли структуру: срок, правило и предел' },
+  { name:'Хесед', meaning:'милость, расширение, доверие жизни', practice:'сделай шаг щедрости без потери собственных границ' },
+  { name:'Гвура', meaning:'сила, отсечение, дисциплина', practice:'убери одно лишнее действие, обещание или привязку' },
+  { name:'Тиферет', meaning:'сердце, красота, равновесие', practice:'выбери поступок, где сила не спорит с мягкостью' },
+  { name:'Нецах', meaning:'желание, победа, живая энергия', practice:'направь страсть в одно видимое действие' },
+  { name:'Ход', meaning:'слово, мысль, точная речь', practice:'назови ситуацию честной короткой фразой' },
+  { name:'Йесод', meaning:'подсознание, связь, сон и знаки', practice:'запиши сон, знак или предчувствие и проверь его позже' },
+  { name:'Малкут', meaning:'земля, тело, результат, воплощение', practice:'сделай маленький материальный шаг: звонок, запись, уборку или оплату' }
+];
+
+function getKabbalahPractice(dateStr, bDay, bMonth) {
+  var n = reduceToRange(lifePathNumber(dateStr) + personalDay(bDay, bMonth), 10);
+  return sephirot[n - 1];
+}
+
+const runes = [
+  { symbol:'ᚠ', name:'Феху', meaning:'ресурс, деньги, обладание', advice:'береги ресурс и направь его туда, где есть рост' },
+  { symbol:'ᚢ', name:'Уруз', meaning:'сила тела, выносливость, первичная мощь', advice:'сначала укрепи тело, потом принимай решение' },
+  { symbol:'ᚦ', name:'Турисаз', meaning:'защита, порог, грубая сила', advice:'не ломись вперёд; обозначь границу' },
+  { symbol:'ᚨ', name:'Ансуз', meaning:'слово, знак, послание', advice:'слушай сказанное между строк и говори точно' },
+  { symbol:'ᚱ', name:'Райдо', meaning:'путь, движение, правильный ритм', advice:'выбери маршрут и не сбивайся на чужой темп' },
+  { symbol:'ᚲ', name:'Кеназ', meaning:'огонь знания, ясность, ремесло', advice:'подсвети скрытую деталь и действуй мастерски' },
+  { symbol:'ᚷ', name:'Гебо', meaning:'обмен, союз, дар', advice:'ищи равновесие между давать и брать' },
+  { symbol:'ᚹ', name:'Вуньо', meaning:'радость, согласие, светлая связь', advice:'замечай, где энергия становится легче' },
+  { symbol:'ᚺ', name:'Хагалаз', meaning:'слом старого, очищение, буря', advice:'не удерживай то, что уже трещит' },
+  { symbol:'ᚾ', name:'Наутиз', meaning:'нужда, ограничение, внутренняя печь', advice:'сократи лишнее и выбери необходимое' },
+  { symbol:'ᛁ', name:'Иса', meaning:'пауза, лёд, остановка', advice:'замри, пока вода не станет прозрачной' },
+  { symbol:'ᛃ', name:'Йера', meaning:'цикл, урожай, время созревания', advice:'не торопи плод; проверь, что ты уже посеял' },
+  { symbol:'ᛇ', name:'Эйваз', meaning:'стойкость, переход, ось между мирами', advice:'держи центр в момент перемены' },
+  { symbol:'ᛈ', name:'Перт', meaning:'тайна, жребий, скрытое знание', advice:'оставь место неизвестному и наблюдай знаки' },
+  { symbol:'ᛉ', name:'Альгиз', meaning:'защита, инстинкт, высшая опора', advice:'слушай первый сигнал тела и усиливай защиту' },
+  { symbol:'ᛋ', name:'Соулу', meaning:'солнце, победа, цельность', advice:'выбирай ясность и действуй открыто' },
+  { symbol:'ᛏ', name:'Тейваз', meaning:'честь, воля, справедливый бой', advice:'поступи прямо, даже если это требует мужества' },
+  { symbol:'ᛒ', name:'Беркана', meaning:'рост, забота, новое начало', advice:'дай слабому ростку режим и защиту' },
+  { symbol:'ᛖ', name:'Эваз', meaning:'движение вдвоём, доверие, партнёрство', advice:'согласуй темп с тем, кто идёт рядом' },
+  { symbol:'ᛗ', name:'Манназ', meaning:'человек, отражение, сообщество', advice:'посмотри на себя глазами другого без самообмана' },
+  { symbol:'ᛚ', name:'Лагуз', meaning:'вода, интуиция, поток', advice:'доверься течению, но не теряй берег' },
+  { symbol:'ᛜ', name:'Ингуз', meaning:'семя, завершение, внутренняя зрелость', advice:'собери силы внутрь перед новым шагом' },
+  { symbol:'ᛞ', name:'Дагаз', meaning:'прорыв, рассвет, смена состояния', advice:'ищи точку, где ночь уже стала утром' },
+  { symbol:'ᛟ', name:'Отал', meaning:'род, наследие, дом', advice:'отдели своё от родового и сохрани ценное' }
+];
+
+function runeFromSeed(seed) {
+  return runes[Math.abs(seed) % runes.length];
+}
+
+function birthRune(dateStr) {
+  var seed = String(dateStr).replace(/-/g,'').split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  return runeFromSeed(seed);
+}
+
+function dailyRune(date) {
+  var seed = date.getFullYear() * 10000 + (date.getMonth()+1) * 100 + date.getDate();
+  return runeFromSeed(seed);
+}
+
+const chakras = [
+  {
+    name:'Муладхара',
+    area:'корень, тело, безопасность',
+    shadow:'страх, нехватка опоры, тревога за деньги или выживание',
+    practice:'заземлись через тело: прогулка, еда, уборка, простое физическое действие'
+  },
+  {
+    name:'Свадхистана',
+    area:'желание, близость, удовольствие, поток чувств',
+    shadow:'зажатость, зависимость от удовольствия, вина за желания',
+    practice:'верни мягкость: вода, движение таза, честное признание желания без немедленного действия'
+  },
+  {
+    name:'Манипура',
+    area:'воля, границы, действие, личная сила',
+    shadow:'контроль, злость, бессилие, страх проявиться',
+    practice:'выбери одно действие и один ясный отказ; не распыляй огонь'
+  },
+  {
+    name:'Анахата',
+    area:'сердце, доверие, любовь, принятие',
+    shadow:'обида, закрытость, спасательство, страх быть отвергнутым',
+    practice:'сделай жест тепла без самопредательства и назови свою потребность'
+  },
+  {
+    name:'Вишудха',
+    area:'голос, правда, выражение, договор',
+    shadow:'молчание, лишние слова, страх сказать прямо',
+    practice:'произнеси одну честную фразу коротко и без обвинений'
+  },
+  {
+    name:'Аджна',
+    area:'видение, интуиция, символы, смысл',
+    shadow:'иллюзии, подозрения, жизнь в догадках',
+    practice:'отдели знак от фантазии: запиши факт, чувство и проверяемое действие'
+  },
+  {
+    name:'Сахасрара',
+    area:'вера, предназначение, связь с высшим',
+    shadow:'оторванность от земли, ожидание чуда вместо шага',
+    practice:'сведи большой смысл к одному земному поступку сегодня'
+  }
+];
+
+function chakraFromNumber(n) {
+  return chakras[Math.abs(n - 1) % chakras.length];
+}
+
+function birthChakra(dateStr) {
+  return chakraFromNumber(lifePathNumber(dateStr));
+}
+
+function activeChakra(dateStr, bDay, bMonth) {
+  return chakraFromNumber(lifePathNumber(dateStr) + personalDay(bDay, bMonth));
+}
+
+const alchemyStages = [
+  { name:'Нигредо', sphere:'кризис, тень, распад старого', light:'честное очищение', shadow:'застревание в мраке и самокопании', practice:'назови, что должно уйти, и не тащи это в следующий шаг' },
+  { name:'Альбедо', sphere:'очищение, тишина, восстановление', light:'ясность после смуты', shadow:'холодная отстранённость и бегство от чувства', practice:'сделай паузу, очисти пространство и отдели факт от страха' },
+  { name:'Цитринитас', sphere:'смысл, видение, зрелое решение', light:'внутреннее золото и понимание пути', shadow:'слишком много размышлений без воплощения', practice:'сформулируй намерение и выбери один проверяемый шаг' },
+  { name:'Рубедо', sphere:'воплощение, союз, действие', light:'живое соединение смысла и поступка', shadow:'спешка, давление и желание доказать силу', practice:'воплоти решение в материи: письмо, разговор, запуск или завершение' }
+];
+
+const slavicArchetypes = [
+  { name:'Велес', sphere:'мудрость, переходы, тайное знание, договор', light:'видеть скрытый узор и вести через порог', shadow:'застревать в тумане знаков', practice:'запиши знак и преврати его в одно земное действие' },
+  { name:'Макошь', sphere:'нить судьбы, род, забота, женская линия', light:'плести события в цельную ткань', shadow:'тащить чужую долю как свою', practice:'отдели свою нить от чужих ожиданий' },
+  { name:'Перун', sphere:'воля, граница, защита, прямое слово', light:'сказать прямо и встать на свою сторону', shadow:'давить силой там, где нужна ясность', practice:'поставь одну границу без угроз и лишних объяснений' },
+  { name:'Лада', sphere:'любовь, согласие, красота, мягкость', light:'создавать лад без самопредательства', shadow:'мириться ценой правды', practice:'выбери жест тепла и одну честную просьбу' },
+  { name:'Мара', sphere:'завершение, сон, отпускание, зимняя тишина', light:'дать умереть тому, что исчерпало срок', shadow:'путать паузу с приговором', practice:'закрой один незавершённый круг' },
+  { name:'Даждьбог', sphere:'солнце, дар, проявление, щедрость', light:'вынести силу в мир', shadow:'доказывать ценность через блеск', practice:'покажи один результат без оправданий' }
+];
+
+const lunarDayMeanings = [
+  'посев намерения и тихий выбор направления',
+  'накопление ресурса и осторожность в желаниях',
+  'воля, движение и проверка силы',
+  'слово, звук и ответственность за сказанное',
+  'усвоение опыта и бережность к телу',
+  'дыхание, знаки воздуха и тонкое наблюдение',
+  'молитва, обещание и сила произнесённого',
+  'перерождение, очищение и смена кожи',
+  'туман, искушение и проверка иллюзий',
+  'род, дом и возвращение к источнику',
+  'сила, энергия и осторожность с напором',
+  'сердце, милость и исцеление через мягкость',
+  'колесо повторов и возвращение старой темы',
+  'призыв, действие и точный рывок',
+  'искушение желаниями и проверка зависимости',
+  'равновесие, тишина и внутренняя чистота',
+  'радость, речь и открытое сердце',
+  'зеркало, отражение и распознавание самообмана',
+  'сеть связей, ловушки и освобождение от привязок',
+  'гордость, достоинство и честная сила',
+  'движение, дорога и поиск верного пути',
+  'мудрость, знание и передача опыта',
+  'защита, границы и хранение своего круга',
+  'пробуждение силы и бережность к импульсам',
+  'созерцание, одиночество и глубинное видение',
+  'жертва, долг и освобождение от лишнего',
+  'интуиция, вода и возвращение к живому чувству',
+  'завершение цикла и подведение итогов',
+  'тишина перед новым началом и очищение поля',
+  'тёмная луна, покой и отказ от суеты'
+];
+
+function getLunarDayMeaning(day) {
+  return lunarDayMeanings[(Math.max(1, day) - 1) % lunarDayMeanings.length];
+}
+
+function getAlchemyStage(message) {
+  var text = oracleText(message);
+  var pd = userBirth ? personalDay(userBirth.getDate(), userBirth.getMonth() + 1) : 1;
+  if (hasAny(text, ['кризис','больно','разруш','конец','страх','тревог','потер','плохо'])) return alchemyStages[0];
+  if (hasAny(text, ['отпустить','очист','устал','пауза','восстанов','простить'])) return alchemyStages[1];
+  if (hasAny(text, ['понять','смысл','выбор','решить','зачем','куда','путь'])) return alchemyStages[2];
+  if (hasAny(text, ['запуск','начать','сделать','действ','прояв','договор','письмо'])) return alchemyStages[3];
+  return alchemyStages[(pd - 1) % alchemyStages.length];
+}
+
+function getElementBalance(message) {
+  var text = oracleText(message);
+  var scores = {
+    Огонь: elements[userSignIdx] === 'Огонь' ? 2 : 0,
+    Земля: elements[userSignIdx] === 'Земля' ? 2 : 0,
+    Воздух: elements[userSignIdx] === 'Воздух' ? 2 : 0,
+    Вода: elements[userSignIdx] === 'Вода' ? 2 : 0
+  };
+  scores.Огонь += countAny(text, ['зл','смел','начать','действ','страст','прояв','побед']);
+  scores.Земля += countAny(text, ['деньг','тело','дом','работ','стабил','безопас','практи']);
+  scores.Воздух += countAny(text, ['дум','слово','письм','разговор','иде','сомнев','объясн']);
+  scores.Вода += countAny(text, ['чувств','любов','страх','тревог','сон','интуиц','слез']);
+  var entries = Object.keys(scores).map(function(k) { return { name:k, score:scores[k] }; }).sort(function(a,b) { return b.score - a.score; });
+  var need = entries[entries.length - 1].name;
+  return {
+    dominant: entries[0].name,
+    missing: need,
+    meaning: 'ведущая стихия сейчас — ' + entries[0].name + ', а для равновесия нужна ' + need,
+    practice: elementPractice(need)
+  };
+}
+
+function elementPractice(element) {
+  if (element === 'Огонь') return 'добавь решимости: одно смелое действие без долгого разогрева';
+  if (element === 'Земля') return 'заземли смысл: сделай запись, оплату, уборку или конкретный план';
+  if (element === 'Воздух') return 'проясни словами: сформулируй мысль в одной честной фразе';
+  return 'верни чувство: дай себе тишину, воду и признание того, что ты переживаешь';
+}
+
+function getSlavicArchetype(message) {
+  var text = oracleText(message);
+  if (hasAny(text, ['род','семь','мама','отец','судьб','нить'])) return slavicArchetypes[1];
+  if (hasAny(text, ['границ','защит','конфликт','зл','сказать','отказать'])) return slavicArchetypes[2];
+  if (hasAny(text, ['любов','отнош','партн','серд','близк'])) return slavicArchetypes[3];
+  if (hasAny(text, ['конец','отпустить','сон','пауза','расстал','устал'])) return slavicArchetypes[4];
+  if (hasAny(text, ['прояв','запуск','успех','дар','деньг','работ'])) return slavicArchetypes[5];
+  return slavicArchetypes[0];
+}
+
+function buildOracleEngine(message, dateStr, bDay, bMonth) {
+  var moon = getMoonPhase(new Date());
+  var stage = getAlchemyStage(message);
+  var balance = getElementBalance(message);
+  var archetype = getSlavicArchetype(message);
+  var kb = getKabbalahPractice(dateStr, bDay, bMonth);
+  var dr = dailyRune(new Date());
+  var ac = activeChakra(dateStr, bDay, bMonth);
+  return {
+    alchemy: insight('Алхимия', stage.name, stage.sphere, stage.light, stage.shadow, stage.practice),
+    elements: insight('Баланс стихий', balance.dominant + ' / нужна ' + balance.missing, 'энергетический перекос ситуации', balance.meaning, 'перекос без недостающей стихии', balance.practice),
+    slavic: insight('Славянский архетип', archetype.name, archetype.sphere, archetype.light, archetype.shadow, archetype.practice),
+    lunarDay: insight('Лунный день', moon.day + '-й лунный день', 'ритм дня', getLunarDayMeaning(moon.day), 'спешка против ритма дня', 'учти лунный ритм перед первым шагом'),
+    practice: insight('Практический ключ', kb.name + ' + ' + dr.name + ' + ' + ac.name, 'воплощение ответа', kb.practice + '; ' + dr.advice, ac.shadow, ac.practice)
+  };
+}
+
+function insight(system, symbol, sphere, light, shadow, practice) {
+  return { system:system, symbol:symbol, sphere:sphere, light:light, shadow:shadow, practice:practice };
+}
+
+function formatOracleInsights(engine) {
+  return Object.keys(engine).map(function(key) {
+    var i = engine[key];
+    return i.system + ': ' + i.symbol + '. Сфера: ' + i.sphere + '. Свет: ' + i.light + '. Тень: ' + i.shadow + '. Практика: ' + i.practice + '.';
+  }).join('\n');
+}
+
+function oracleText(message) {
+  return ([message || ''].concat(events.map(function(e) { return e.text || ''; }))).join(' ').toLowerCase();
+}
+
+function hasAny(text, words) {
+  return words.some(function(w) { return text.indexOf(w) >= 0; });
+}
+
+function countAny(text, words) {
+  return words.reduce(function(n, w) { return n + (text.indexOf(w) >= 0 ? 1 : 0); }, 0);
+}
+
+// Лунный календарь
+function getMoonPhase(date) {
+  var known = new Date(2000, 0, 6, 18, 14);
+  var synodic = 29.53059;
+  var diff = (date - known) / 86400000;
+  var phase = ((diff % synodic) + synodic) % synodic;
+  var pct = phase / synodic;
+  var phases = [
+    { name: 'Новолуние', icon: '\u{1F311}', max: 0.0375 },
+    { name: 'Растущий серп', icon: '\u{1F312}', max: 0.125 },
+    { name: 'Первая четверть', icon: '\u{1F313}', max: 0.2125 },
+    { name: 'Растущая луна', icon: '\u{1F314}', max: 0.375 },
+    { name: 'Полнолуние', icon: '\u{1F315}', max: 0.4625 },
+    { name: 'Убывающая луна', icon: '\u{1F316}', max: 0.625 },
+    { name: 'Последняя четверть', icon: '\u{1F317}', max: 0.7875 },
+    { name: 'Убывающий серп', icon: '\u{1F318}', max: 0.9625 },
+    { name: 'Новолуние', icon: '\u{1F311}', max: 1.0 }
+  ];
+  for (var i = 0; i < phases.length; i++) {
+    if (pct <= phases[i].max) return { name: phases[i].name, icon: phases[i].icon, day: Math.floor(phase) + 1, pct: pct };
+  }
+  return { name: phases[0].name, icon: phases[0].icon, day: 1, pct: 0 };
+}
+
+// Китайский зодиак
+function getChineseZodiac(year) {
+  var animals = ['Крыса','Бык','Тигр','Кролик','Дракон','Змея','Лошадь','Коза','Обезьяна','Петух','Собака','Свинья'];
+  var elems = ['Металл','Вода','Дерево','Огонь','Земля'];
+  var animalIcons = ['\u{1F400}','\u{1F402}','\u{1F405}','\u{1F407}','\u{1F409}','\u{1F40D}','\u{1F40E}','\u{1F410}','\u{1F412}','\u{1F413}','\u{1F415}','\u{1F416}'];
+  return {
+    animal: animals[(year - 4) % 12],
+    icon: animalIcons[(year - 4) % 12],
+    element: elems[Math.floor((year - 4) % 10 / 2)]
+  };
+}
+
+// Таро
+var tarotMajor = [
+  {name:'Шут',meaning:'новые начала, свобода, спонтанность'},
+  {name:'Маг',meaning:'сила воли, мастерство, ресурсы'},
+  {name:'Жрица',meaning:'интуиция, тайны, внутренний голос'},
+  {name:'Императрица',meaning:'изобилие, творчество, забота'},
+  {name:'Император',meaning:'структура, власть, стабильность'},
+  {name:'Иерофант',meaning:'традиции, мудрость, наставничество'},
+  {name:'Влюблённые',meaning:'выбор, союз, гармония'},
+  {name:'Колесница',meaning:'воля, победа, движение вперёд'},
+  {name:'Сила',meaning:'внутренняя сила, терпение, мужество'},
+  {name:'Отшельник',meaning:'поиск истины, одиночество, мудрость'},
+  {name:'Колесо Фортуны',meaning:'перемены, цикличность, судьба'},
+  {name:'Справедливость',meaning:'баланс, закон причины и следствия'},
+  {name:'Повешенный',meaning:'жертва, новый взгляд, пауза'},
+  {name:'Смерть',meaning:'трансформация, конец и начало'},
+  {name:'Умеренность',meaning:'баланс, терпение, срединный путь'},
+  {name:'Дьявол',meaning:'привязанности, искушения, тени'},
+  {name:'Башня',meaning:'разрушение старого, откровение'},
+  {name:'Звезда',meaning:'надежда, вдохновение, обновление'},
+  {name:'Луна',meaning:'иллюзии, подсознание, страхи'},
+  {name:'Солнце',meaning:'радость, успех, ясность'},
+  {name:'Суд',meaning:'пробуждение, призвание, итог'},
+  {name:'Мир',meaning:'завершение, целостность, гармония'}
+];
+
+function birthTarot(lifePath) {
+  var num = lifePath;
+  if (num === 22) return tarotMajor[0]; // Мастер 22 = Шут
+  while (num > 21) num = reduceNum(num);
+  return tarotMajor[num];
+}
+
+function yearTarot(bDay, bMonth) {
+  var py = personalYear(bDay, bMonth);
+  var num = py;
+  while (num > 21) num = reduceNum(num);
+  return tarotMajor[num];
+}
+
+function dailyTarot(date) {
+  var seed = date.getFullYear() * 10000 + (date.getMonth()+1) * 100 + date.getDate();
+  return tarotMajor[seed % 22];
+}
+
+// Матрица Судьбы: упрощённая модель на 22 арканах
+function matrixReduce(n) {
+  while (n > 22) n = String(n).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  return n;
+}
+
+var arcanEnergies = [
+  '',
+  'Маг — сила воли, лидерство, начало',
+  'Жрица — интуиция, тайное знание',
+  'Императрица — творчество, изобилие, женственность',
+  'Император — порядок, власть, стабильность',
+  'Иерофант — традиции, учительство, духовность',
+  'Влюблённые — выбор, любовь, испытание',
+  'Колесница — движение, победа, амбиции',
+  'Справедливость — баланс, закон, карма',
+  'Отшельник — мудрость, поиск, одиночество',
+  'Колесо Фортуны — перемены, цикличность, удача',
+  'Сила — внутренняя мощь, терпение, страсть',
+  'Повешенный — жертва, пауза, новый взгляд',
+  'Смерть — трансформация, обновление, конец',
+  'Умеренность — гармония, срединный путь',
+  'Дьявол — привязанности, страхи, теневая сторона',
+  'Башня — крушение, освобождение, прорыв',
+  'Звезда — надежда, вдохновение, путь',
+  'Луна — иллюзии, подсознание, тревоги',
+  'Солнце — радость, успех, энергия',
+  'Суд — пробуждение, призвание, трансформация',
+  'Мир — целостность, завершение, миссия',
+  'Шут — свобода, спонтанность, новые начала'
+];
+
+function calcMatrix(day, month, year) {
+  var A = matrixReduce(day);
+  var B = matrixReduce(month);
+  var yearSum = String(year).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  var C = matrixReduce(yearSum);
+  var D = matrixReduce(A + B + C);
+
+  var E = matrixReduce(A + B);  // зона комфорта
+  var F = matrixReduce(B + C);  // зона таланта
+  var G = matrixReduce(C + D);  // духовный рост
+  var H = matrixReduce(A + D);  // кармический хвост
+
+  var earthLine = matrixReduce(A + E + B);  // линия земли
+  var skyLine = matrixReduce(C + G + D);    // линия неба
+  var missionPersonal = matrixReduce(E + F); // личное предназначение
+  var missionSocial = matrixReduce(G + H);   // социальное предназначение
+  var missionGeneral = matrixReduce(missionPersonal + missionSocial); // общее предназначение
+
+  var moneyZone = matrixReduce(E + H);     // зона денег
+  var relZone = matrixReduce(F + G);       // зона отношений
+
+  return {
+    character: { num: A, desc: arcanEnergies[A] },
+    connection: { num: B, desc: arcanEnergies[B] },
+    karma: { num: C, desc: arcanEnergies[C] },
+    spirit: { num: D, desc: arcanEnergies[D] },
+    comfort: { num: E, desc: arcanEnergies[E] },
+    talent: { num: F, desc: arcanEnergies[F] },
+    growth: { num: G, desc: arcanEnergies[G] },
+    tail: { num: H, desc: arcanEnergies[H] },
+    earthLine: earthLine,
+    skyLine: skyLine,
+    missionPersonal: { num: missionPersonal, desc: arcanEnergies[missionPersonal] },
+    missionSocial: { num: missionSocial, desc: arcanEnergies[missionSocial] },
+    missionGeneral: { num: missionGeneral, desc: arcanEnergies[missionGeneral] },
+    money: { num: moneyZone, desc: arcanEnergies[moneyZone] },
+    relations: { num: relZone, desc: arcanEnergies[relZone] }
+  };
+}
+
+// Стихия дня
+function getDayElement(date) {
+  var days = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  var rulers = ['Солнце','Луна','Марс','Меркурий','Юпитер','Венера','Сатурн'];
+  var d = date.getDay();
+  return { day: days[d], ruler: rulers[d] };
+}
+
+// Сезон силы знака
+function getSeasonPower(signIdx) {
+  var now = new Date();
+  var currentSign = getZodiac(now.getMonth()+1, now.getDate());
+  var diff = ((currentSign - signIdx) + 12) % 12;
+  if (diff === 0) return { status: 'Сезон силы', desc: 'Солнце в твоём знаке — максимум энергии' };
+  if (diff === 6) return { status: 'Противофаза', desc: 'Солнце напротив — время для баланса' };
+  if (diff <= 2 || diff >= 10) return { status: 'Близко к пику', desc: 'Высокая энергия, благоприятный период' };
+  return { status: 'Фоновый режим', desc: 'Копи силы, действуй обдуманно' };
+}
+
+// SVG матрица Моносова
+function buildMatrixSVG(mx) {
+  var w = 300, h = 320;
+  var cx = 150, cy = 150;
+  var r = 110; // radius of diamond
+  var nr = 18; // node radius
+  var snr = 14; // small node radius
+
+  var nodes = [
+    { x: cx, y: cy - r, num: mx.character.num, label: 'ХАРАКТЕР', main: true },       // 0 top (A)
+    { x: cx + r, y: cy, num: mx.connection.num, label: 'СВЯЗЬ', main: true },          // 1 right (B)
+    { x: cx, y: cy + r, num: mx.karma.num, label: 'КАРМА', main: true },               // 2 bottom (C)
+    { x: cx - r, y: cy, num: mx.spirit.num, label: 'ДУХ', main: true },                // 3 left (D)
+    { x: cx + r*0.5, y: cy - r*0.5, num: mx.comfort.num, label: 'КОМФОРТ', main: false }, // 4 top-right (E)
+    { x: cx + r*0.5, y: cy + r*0.5, num: mx.talent.num, label: 'ТАЛАНТ', main: false },   // 5 bottom-right (F)
+    { x: cx - r*0.5, y: cy + r*0.5, num: mx.growth.num, label: 'РОСТ', main: false },     // 6 bottom-left (G)
+    { x: cx - r*0.5, y: cy - r*0.5, num: mx.tail.num, label: 'КАРМ.ХВОСТ', main: false }, // 7 top-left (H)
+    { x: cx, y: cy, num: mx.missionGeneral.num, label: 'МИССИЯ', main: true },             // 8 center
+  ];
+
+  var lines = [
+    [0,4],[4,1],[1,5],[5,2],[2,6],[6,3],[3,7],[7,0], // diamond edges
+    [0,2],[1,3], // diagonals
+  ];
+
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + (h+10) + '" xmlns="http://www.w3.org/2000/svg">';
+
+  // Lines
+  for (var i = 0; i < lines.length; i++) {
+    var a = nodes[lines[i][0]], b = nodes[lines[i][1]];
+    var cls = (lines[i][0] <= 3 && lines[i][1] <= 3) ? 'matrix-line-main' : 'matrix-line';
+    svg += '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" class="'+cls+'"/>';
+  }
+
+  // Nodes
+  for (var j = 0; j < nodes.length; j++) {
+    var n = nodes[j];
+    var rad = n.main ? nr : snr;
+    var circleClass = j === 8 ? 'matrix-node-center' : 'matrix-node-circle';
+    svg += '<circle cx="'+n.x+'" cy="'+n.y+'" r="'+rad+'" class="'+circleClass+'"/>';
+    svg += '<text x="'+n.x+'" y="'+(n.y+5)+'" text-anchor="middle" class="matrix-num">' + n.num + '</text>';
+    var ly = n.y + rad + 12;
+    if (j === 2 || j === 5 || j === 6) ly = n.y + rad + 12;
+    if (j === 0 || j === 4 || j === 7) ly = n.y - rad - 5;
+    if (j === 8) ly = n.y + rad + 13;
+    svg += '<text x="'+n.x+'" y="'+ly+'" text-anchor="middle" class="matrix-label">' + n.label + '</text>';
+  }
+
+  // Money & Relations labels on sides
+  svg += '<text x="'+cx+'" y="'+(h+5)+'" text-anchor="middle" style="fill:#4a3a70;font-size:8px;font-family:inherit;">Деньги: ' + mx.money.num + ' • Отношения: ' + mx.relations.num + '</text>';
+
+  svg += '</svg>';
+  return svg;
+}
+
+// Ежедневный прогноз
+function buildDailyForecast() {
+  var bd = userBirth.getDate();
+  var bm = userBirth.getMonth() + 1;
+  var moon = getMoonPhase(new Date());
+  var dt = dailyTarot(new Date());
+  var pd = personalDay(bd, bm);
+  var de = getDayElement(new Date());
+  var sp = getSeasonPower(userSignIdx);
+  var mx = calcMatrix(bd, bm, userBirth.getFullYear());
+
+  var advices = {
+    1: 'День новых начинаний. Действуй, начинай, не откладывай.',
+    2: 'День партнёрства. Ищи союзников, слушай других.',
+    3: 'День самовыражения. Творчество и общение на пике.',
+    4: 'День дисциплины. Наводи порядок, строй фундамент.',
+    5: 'День перемен. Будь гибким, лови возможности.',
+    6: 'День гармонии. Семья, дом, забота о близких.',
+    7: 'День тишины. Анализируй, размышляй, не спеши.',
+    8: 'День силы. Финансы, амбиции, большие решения.',
+    9: 'День завершений. Отпускай старое, прощай, закрывай дела.',
+    11: 'Мастер-день. Интуиция обострена, доверяй внутреннему голосу.',
+    22: 'Мастер-день. Масштабные планы обретают форму.',
+    33: 'Мастер-день. Служение и помощь другим принесут награду.'
+  };
+
+  var advice = advices[pd] || advices[pd % 10] || 'Следуй интуиции.';
+
+  var now = new Date();
+  var months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  var dateStr = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+
+  var html = '<div class="forecast-card">' +
+    '<div class="forecast-header">' +
+      '<div class="pattern-icon"><div class="pattern-icon-inner"></div></div>' +
+      'Прогноз на сегодня • ' + dateStr +
+    '</div>' +
+    '<div class="forecast-row"><span class="forecast-key">' + moon.icon + ' Луна</span><span class="forecast-val">' + moon.name + ', ' + moon.day + '-й день</span></div>' +
+    '<div class="forecast-row"><span class="forecast-key">Карта дня</span><span class="forecast-val">' + dt.name + '</span></div>' +
+    '<div class="forecast-row"><span class="forecast-key">Персональный день</span><span class="forecast-val">' + pd + '</span></div>' +
+    '<div class="forecast-row"><span class="forecast-key">Управитель</span><span class="forecast-val">' + de.ruler + '</span></div>' +
+    '<div class="forecast-row"><span class="forecast-key">Энергия</span><span class="forecast-val">' + sp.status + '</span></div>' +
+    '<div class="forecast-advice">' + advice + ' Карта дня — ' + dt.name + ': ' + dt.meaning + '.</div>' +
+  '</div>';
+
+  return html;
+}
+
+// Stars
+(function() {
+  const c = document.getElementById('stars');
+  for (let i = 0; i < 50; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() > 0.8 ? 2 : 1;
+    s.style.cssText = 'width:'+size+'px;height:'+size+'px;top:'+Math.random()*100+'%;left:'+Math.random()*100+'%;animation-delay:'+Math.random()*4+'s;animation-duration:'+(2+Math.random()*4)+'s;';
+    c.appendChild(s);
+  }
+})();
+
+function startApp(fromStorage) {
+  if (!fromStorage) {
+    userName = document.getElementById('nameInput').value.trim() || 'Странник';
+    var bv = document.getElementById('birthInput').value;
+    if (!bv) {
+      var bi = document.getElementById('birthInput');
+      bi.style.borderColor = 'rgba(220,80,80,0.5)';
+      bi.style.background = 'rgba(220,80,80,0.05)';
+      return;
+    }
+    userBirthValue = bv;
+    userBirth = new Date(bv);
+  }
+  var bv = userBirthValue;
+  userSignIdx = getZodiac(userBirth.getMonth()+1, userBirth.getDate());
+  userSign = signSymbols[userSignIdx] + ' ' + signsRu[userSignIdx];
+
+  document.getElementById('screen-onboard').classList.remove('active');
+  document.getElementById('screen-oracle').classList.add('active');
+  document.getElementById('mainNav').style.display = 'flex';
+  document.getElementById('userSign').textContent = userName + ' — ' + userSign;
+
+  buildProfile(userSignIdx, bv);
+  if (events.length > 0) {
+    updateDiary();
+  } else {
+    buildDiary();
+  }
+
+  saveToStorage();
+
+  var greeting = fromStorage
+    ? 'С возвращением, <span class="accent">' + userName + '</span>. Твоя карта обновлена.\n\nЧто нового произошло?'
+    : 'Приветствую, <span class="accent">' + userName + '</span>. Я изучил твою карту — ' + userSign + '. Я вижу закономерности, ждущие раскрытия.\n\nРасскажи мне, что происходит в твоей жизни. Чем больше узнаю — тем точнее увижу.';
+
+  setTimeout(function() {
+    addOracleMsg(greeting, fromStorage ? 'Данные восстановлены' : 'Натальная карта проанализирована');
+  }, 600);
+
+  setTimeout(function() {
+    var chat = document.getElementById('chatArea');
+    var d = document.createElement('div');
+    d.className = 'msg';
+    d.innerHTML = buildDailyForecast();
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+  }, 1200);
+
+  setTimeout(function() { addViralCard(); }, 2800);
+}
+
+function buildProfile(zi, bv) {
+  var lp = lifePathNumber(bv);
+  var dn = destinyNumber(userName);
+  var sn = soulNumber(userName);
+  var pn = personalityNum(userName);
+  var bd = userBirth.getDate();
+  var bm = userBirth.getMonth() + 1;
+  var bn = birthdayNum(bd);
+  var mn = maturityNum(lp, dn);
+  var py = personalYear(bd, bm);
+  var pm = personalMonth(bd, bm);
+  var pd = personalDay(bd, bm);
+  var cz = getChineseZodiac(userBirth.getFullYear());
+  var moon = getMoonPhase(new Date());
+  var bt = birthTarot(lp);
+  var yt = yearTarot(bd, bm);
+  var dt = dailyTarot(new Date());
+  var de = getDayElement(new Date());
+  var sp = getSeasonPower(zi);
+  var mx = calcMatrix(bd, bm, userBirth.getFullYear());
+  var kb = getKabbalahPractice(bv, bd, bm);
+  var br = birthRune(bv);
+  var dr = dailyRune(new Date());
+  var bc = birthChakra(bv);
+  var ac = activeChakra(bv, bd, bm);
+  var bc = birthChakra(bv);
+  var ac = activeChakra(bv, bd, bm);
+
+  var pc = document.getElementById('profileContent');
+  pc.innerHTML =
+    '<div class="profile-header">' +
+      '<div class="profile-avatar">' + signSymbols[zi] + '</div>' +
+      '<div class="profile-name">' + userName + '</div>' +
+      '<div class="profile-sign">' + signsRu[zi] + ' • ' + elements[zi] + ' • ' + planets[zi] + '</div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Натальная карта</div>' +
+      '<div class="stat-row"><span class="stat-label">Солнечный знак</span><span class="stat-value">' + signSymbols[zi] + ' ' + signsRu[zi] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Стихия</span><span class="stat-value">' + elements[zi] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Управитель</span><span class="stat-value">' + planets[zi] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Качество</span><span class="stat-value">' + qualities[zi] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Энергия сейчас</span><span class="stat-value ' + (sp.status === 'Сезон силы' ? 'good' : sp.status === 'Противофаза' ? 'warn' : '') + '">' + sp.status + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Китайский зодиак</div>' +
+      '<div class="stat-row"><span class="stat-label">Животное</span><span class="stat-value">' + cz.icon + ' ' + cz.animal + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Стихия</span><span class="stat-value">' + cz.element + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Нумерология</div>' +
+      '<div class="stat-row"><span class="stat-label">Число жизненного пути</span><span class="stat-value accent">' + lp + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Число судьбы (имя)</span><span class="stat-value accent">' + dn + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Число души</span><span class="stat-value accent">' + sn + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Число личности</span><span class="stat-value accent">' + pn + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Число дня рождения</span><span class="stat-value accent">' + bn + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Число зрелости</span><span class="stat-value accent">' + mn + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Персональные циклы</div>' +
+      '<div class="stat-row"><span class="stat-label">Персональный год</span><span class="stat-value accent">' + py + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Персональный месяц</span><span class="stat-value accent">' + pm + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Персональный день</span><span class="stat-value accent">' + pd + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Таро</div>' +
+      '<div class="stat-row"><span class="stat-label">Карта рождения</span><span class="stat-value accent">' + bt.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Карта года</span><span class="stat-value accent">' + yt.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Карта дня</span><span class="stat-value accent">' + dt.name + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Каббалистика</div>' +
+      '<div class="stat-row"><span class="stat-label">Сфира практики</span><span class="stat-value accent">' + kb.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Смысл</span><span class="stat-value">' + kb.meaning + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Применение</span><span class="stat-value good">' + kb.practice + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Руны</div>' +
+      '<div class="stat-row"><span class="stat-label">Руна рождения</span><span class="stat-value accent">' + br.symbol + ' ' + br.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Руна дня</span><span class="stat-value accent">' + dr.symbol + ' ' + dr.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Совет руны</span><span class="stat-value good">' + dr.advice + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Чакры</div>' +
+      '<div class="stat-row"><span class="stat-label">Чакра рождения</span><span class="stat-value accent">' + bc.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Активная чакра</span><span class="stat-value accent">' + ac.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Зона</span><span class="stat-value">' + ac.area + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Тень</span><span class="stat-value warn">' + ac.shadow + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Практика</span><span class="stat-value good">' + ac.practice + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Матрица Судьбы</div>' +
+      '<div class="matrix-wrap">' + buildMatrixSVG(mx) + '</div>' +
+      '<div class="stat-row"><span class="stat-label">Характер (' + mx.character.num + ')</span><span class="stat-value accent">' + mx.character.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Связь с миром (' + mx.connection.num + ')</span><span class="stat-value accent">' + mx.connection.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Карма (' + mx.karma.num + ')</span><span class="stat-value accent">' + mx.karma.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Духовная задача (' + mx.spirit.num + ')</span><span class="stat-value accent">' + mx.spirit.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Зона комфорта (' + mx.comfort.num + ')</span><span class="stat-value">' + mx.comfort.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Зона таланта (' + mx.talent.num + ')</span><span class="stat-value good">' + mx.talent.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Духовный рост (' + mx.growth.num + ')</span><span class="stat-value">' + mx.growth.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Кармический хвост (' + mx.tail.num + ')</span><span class="stat-value warn">' + mx.tail.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Зона денег (' + mx.money.num + ')</span><span class="stat-value accent">' + mx.money.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Зона отношений (' + mx.relations.num + ')</span><span class="stat-value accent">' + mx.relations.desc.split(' — ')[0] + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Предназначение (' + mx.missionGeneral.num + ')</span><span class="stat-value good">' + mx.missionGeneral.desc.split(' — ')[0] + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Луна сегодня</div>' +
+      '<div class="stat-row"><span class="stat-label">Фаза</span><span class="stat-value">' + moon.icon + ' ' + moon.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Лунный день</span><span class="stat-value">' + moon.day + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Управитель дня</span><span class="stat-value">' + de.ruler + ' (' + de.day + ')</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
+      '<div class="card-label">Статистика оракула</div>' +
+      '<div class="stat-row"><span class="stat-label">Событий записано</span><span class="stat-value" id="eventCount">' + events.length + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Паттернов найдено</span><span class="stat-value" id="patternCount">0</span></div>' +
+    '</div>' +
+    '<button onclick="clearStorage()" style="width:100%;padding:14px;background:rgba(220,80,80,0.08);border:0.5px solid rgba(220,80,80,0.2);border-radius:14px;color:#c88080;font-size:14px;cursor:pointer;font-family:inherit;margin-top:8px;">Выйти и сбросить данные</button>';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+const diaryPatternRules = [
+  {
+    title: 'Тревожная тишина',
+    words: ['молчит','тишина','не отвечает','пропал','игнор','жду ответа','перепис'],
+    desc: 'В летописи повторяется пустое место между тобой и другим человеком. Велес видит, что тишина быстро становится знаком угрозы, даже когда фактов ещё мало.',
+    advice: 'Когда эта нить появляется снова, сначала верни тело в покой, а потом пиши одно ясное сообщение вместо потока вопросов.'
+  },
+  {
+    title: 'Узел отношений',
+    words: ['партнёр','партнер','отнош','любов','ревн','расстал','расстались','ссора','близк'],
+    desc: 'События часто сходятся вокруг близости, доверия и границ. Эта тема просит не гадать за другого, а ясно видеть свою потребность.',
+    advice: 'Записывай не только что сделал другой, но и что ты хотел получить в этот момент: ясность, тепло, выбор или подтверждение.'
+  },
+  {
+    title: 'Денежная тропа',
+    words: ['деньг','работ','проект','клиент','зарплат','доход','бизнес','сделк','карьер'],
+    desc: 'В хронике проступает линия дела и ресурсов. Здесь важно отличать знак возможности от усталого желания всё бросить.',
+    advice: 'Перед решением о деньгах выпиши один практический шаг, одну опасность и один срок — так знак станет действием.'
+  },
+  {
+    title: 'Старая роль',
+    words: ['мама','отец','родител','семь','род','обид','вина','должен','должна'],
+    desc: 'Эта нить похожа на родовой сценарий: тебя снова тянет в привычную роль, где приходится заслуживать право быть собой.',
+    advice: 'Отдели свой выбор от ожиданий семьи и сформулируй одну границу короткой спокойной фразой.'
+  },
+  {
+    title: 'Тело подаёт знак',
+    words: ['устал','сон','болит','тело','энерг','сил нет','выгор','паник','дыш'],
+    desc: 'События говорят не только умом, но и телом. Велес видит, что сила уходит, когда ты слишком долго держишь внутреннее напряжение.',
+    advice: 'Сначала сон, вода, дыхание и прогулка; важные решения лучше принимать после возвращения сил.'
+  },
+  {
+    title: 'Развилка выбора',
+    words: ['выбор','решить','сомнев','не знаю','стоит ли','уйти','остаться','начать','боюсь'],
+    desc: 'Повторяется место развилки: одна часть тебя зовёт вперёд, другая ищет гарантий. Так судьба проверяет не смелость, а честность намерения.',
+    advice: 'Выбери шаг на сутки, а не решение на всю жизнь: маленькое действие покажет больше, чем долгие размышления.'
+  },
+  {
+    title: 'Знаки и сны',
+    words: ['сон','снилось','знак','совпад','маг','интуиц','предчув','карта','луна'],
+    desc: 'В хронике появляются тонкие знаки: сны, совпадения, внутренние предчувствия. Их сила в наблюдении, а не в спешной трактовке.',
+    advice: 'Записывай знак, настроение и последствие; через несколько записей станет видно, где интуиция, а где шум.'
+  }
+];
+
+function analyzeDiaryPatterns() {
+  var total = events.length;
+  if (total === 0) return [];
+
+  var patterns = diaryPatternRules.map(function(rule) {
+    var matched = events.filter(function(e) {
+      var text = String(e.text || '').toLowerCase();
+      return rule.words.some(function(w) { return text.indexOf(w) >= 0; });
+    });
+    return {
+      title: rule.title,
+      desc: rule.desc,
+      advice: rule.advice,
+      count: matched.length,
+      latest: matched.length ? matched[matched.length - 1].date : null
+    };
+  }).filter(function(p) {
+    return p.count >= 2 || (total < 3 && p.count >= 1);
+  }).sort(function(a, b) {
+    return b.count - a.count;
+  });
+
+  return patterns.slice(0, 3);
+}
+
+function buildDiaryPatterns() {
+  var patterns = analyzeDiaryPatterns();
+  var html = '<div class="diary-patterns">' +
+    '<div class="diary-section-label"><div class="pattern-icon"><div class="pattern-icon-inner"></div></div>Паттерны</div>';
+
+  if (events.length === 0) {
+    html += '<div class="diary-pattern-empty">Пока летопись пуста. Записывай события, и Велес начнёт видеть повторяющиеся нити.</div>';
+  } else if (patterns.length === 0) {
+    html += '<div class="diary-pattern-empty">Записей уже ' + events.length + ', но устойчивый узор ещё не проявился. Нужно больше событий, чтобы отделить знак от случайности.</div>';
+  } else {
+    html += patterns.map(function(p) {
+      return '<div class="diary-pattern">' +
+        '<div class="diary-pattern-top">' +
+          '<div class="diary-pattern-title">' + escapeHtml(p.title) + '</div>' +
+          '<div class="diary-pattern-count">' + p.count + ' ' + patternEventWord(p.count) + '</div>' +
+        '</div>' +
+        '<div class="diary-pattern-desc">' + escapeHtml(p.desc) + '</div>' +
+        '<div class="diary-pattern-advice">' + escapeHtml(p.advice) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  return html + '</div>';
+}
+
+function patternEventWord(n) {
+  if (n === 1) return 'событие';
+  if (n > 1 && n < 5) return 'события';
+  return 'событий';
+}
+
+function updatePatternCount() {
+  var pc = document.getElementById('patternCount');
+  if (pc) pc.textContent = analyzeDiaryPatterns().length;
+}
+
+function buildDiary() {
+  document.getElementById('diaryList').innerHTML =
+    buildDiaryPatterns() +
+    '<div style="text-align:center; padding: 60px 24px;">' +
+      '<div style="font-size: 14px; color: #4a3a70; line-height: 1.7;">' +
+        'Дневник пуст.<br>Расскажи оракулу о событиях — они появятся здесь с космическим контекстом.' +
+      '</div>' +
+    '</div>';
+  updatePatternCount();
+}
+
+let responseIdx = 0;
+let useAI = true;
+
+const fallbackResponses = [
+  function(n, s) { return 'Я чувствую, как твоя энергия смещается, ' + n + '. Как ' + s + ', ты ощущаешь это нутром. Прислушайся к тому, что говорит тело на этой неделе.'; },
+  function(n, s) { return 'Интересно… Это связано с чем-то более глубоким. Я вижу формирующийся паттерн — нужно больше данных. Продолжай записывать события.'; },
+  function(n, s) { return 'Звёзды указывают на смену направления впереди. Не резкую — мягкую. Как река, находящая новое русло. Доверься своей интуиции, ' + n + '.'; },
+  function(n, s) { return 'Я чувствую напряжение с кем-то близким. Не конфликт — просто несовпадение ритмов. Дай этому три дня. Энергия сменится в четверг.'; },
+  function(n, s) { return n + ', то что ты описываешь — классическая энергия ' + s + ' под этим транзитом. Ты чувствовал это раньше — в сентябре. Помнишь?'; },
+  function(n, s) { return 'Это цикл, который замыкается. То, что началось месяцы назад, подходит к развязке. Не форсируй результат — дай ему прийти самому.'; },
+];
+
+function buildEsotericContext(message) {
+  var bv = userBirthValue || document.getElementById('birthInput')?.value || '';
+  var bd = userBirth.getDate();
+  var bm = userBirth.getMonth() + 1;
+  var lp = lifePathNumber(bv);
+  var moon = getMoonPhase(new Date());
+  var cz = getChineseZodiac(userBirth.getFullYear());
+  var bt = birthTarot(lp);
+  var yt = yearTarot(bd, bm);
+  var dt = dailyTarot(new Date());
+  var de = getDayElement(new Date());
+  var sp = getSeasonPower(userSignIdx);
+  var kb = getKabbalahPractice(bv, bd, bm);
+  var br = birthRune(bv);
+  var dr = dailyRune(new Date());
+  var bc = birthChakra(bv);
+  var ac = activeChakra(bv, bd, bm);
+  var engine = buildOracleEngine(message || '', bv, bd, bm);
+
+  return {
+    userName: userName,
+    birthDate: bv,
+    zodiac: signsRu[userSignIdx],
+    element: elements[userSignIdx],
+    quality: qualities[userSignIdx],
+    planet: planets[userSignIdx],
+    seasonPower: sp.status + ' — ' + sp.desc,
+    chinese: cz.animal + ' (' + cz.element + ')',
+    lifePath: lp,
+    destiny: destinyNumber(userName),
+    soul: soulNumber(userName),
+    personality: personalityNum(userName),
+    birthday: birthdayNum(bd),
+    maturity: maturityNum(lp, destinyNumber(userName)),
+    personalYear: personalYear(bd, bm),
+    personalMonth: personalMonth(bd, bm),
+    personalDay: personalDay(bd, bm),
+    birthTarot: bt.name + ' — ' + bt.meaning,
+    yearTarot: yt.name + ' — ' + yt.meaning,
+    dailyTarot: dt.name + ' — ' + dt.meaning,
+    kabbalah: kb.name + ' — ' + kb.meaning + '. Практика: ' + kb.practice,
+    birthRune: br.symbol + ' ' + br.name + ' — ' + br.meaning + '. Совет: ' + br.advice,
+    dailyRune: dr.symbol + ' ' + dr.name + ' — ' + dr.meaning + '. Совет: ' + dr.advice,
+    birthChakra: bc.name + ' — ' + bc.area + '. Тень: ' + bc.shadow + '. Практика: ' + bc.practice,
+    activeChakra: ac.name + ' — ' + ac.area + '. Тень: ' + ac.shadow + '. Практика: ' + ac.practice,
+    oracleInsights: formatOracleInsights(engine),
+    moonPhase: moon.name + ', ' + moon.day + '-й лунный день',
+    dayRuler: de.ruler + ' (' + de.day + ')',
+    today: new Date().toLocaleDateString('ru-RU'),
+    matrix: (function() {
+      var mx = calcMatrix(bd, bm, userBirth.getFullYear());
+      return {
+        character: mx.character.num + ' ' + mx.character.desc,
+        connection: mx.connection.num + ' ' + mx.connection.desc,
+        karma: mx.karma.num + ' ' + mx.karma.desc,
+        spirit: mx.spirit.num + ' ' + mx.spirit.desc,
+        comfort: mx.comfort.num + ' ' + mx.comfort.desc,
+        talent: mx.talent.num + ' ' + mx.talent.desc,
+        tail: mx.tail.num + ' ' + mx.tail.desc,
+        money: mx.money.num + ' ' + mx.money.desc,
+        relations: mx.relations.num + ' ' + mx.relations.desc,
+        mission: mx.missionGeneral.num + ' ' + mx.missionGeneral.desc
+      };
+    })()
+  };
+}
+
+async function askOracle(message) {
+  try {
+    var eventsForApi = events.map(function(e) {
+      return { text: e.text, date: e.date.toLocaleDateString('ru-RU') };
+    });
+
+    var ctx = buildEsotericContext(message);
+    ctx.events = eventsForApi;
+    ctx.message = message;
+
+    var response = await fetch('/api/oracle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx)
+    });
+
+    if (!response.ok) throw new Error('API error');
+    var data = await response.json();
+    return data.reply;
+  } catch(err) {
+    useAI = false;
+    var sign = signsRu[userSignIdx];
+    return fallbackResponses[responseIdx % fallbackResponses.length](userName, sign);
+  }
+}
+
+function addOracleMsg(text, meta) {
+  var chat = document.getElementById('chatArea');
+  var d = document.createElement('div');
+  d.className = 'msg';
+  d.innerHTML = '<div class="msg-oracle"><p>' + text.replace(/\n/g,'<br>') + '</p>' + (meta ? '<div class="meta"><div class="meta-dot"></div>' + meta + '</div>' : '') + '</div>';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addViralCard() {
+  var chat = document.getElementById('chatArea');
+  var d = document.createElement('div');
+  d.className = 'viral-card';
+  var months = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'];
+  var rm = months[Math.floor(Math.random()*12)];
+  d.innerHTML =
+    '<p>Я чувствую сильную связь с кем-то, рождённым в ' + rm + '. Отправь ему ссылку — я раскрою, что между вами.</p>' +
+    '<div class="viral-btns">' +
+      '<button class="btn-send" onclick="shareLink()">Отправить ссылку</button>' +
+      '<button class="btn-later" onclick="this.closest(\'.viral-card\').style.display=\'none\'">Позже</button>' +
+    '</div>';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function sendMessage() {
+  var input = document.getElementById('msgInput');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  var chat = document.getElementById('chatArea');
+  var d = document.createElement('div');
+  d.className = 'msg-user-wrap';
+  d.innerHTML = '<div class="msg-user">' + text + '</div>';
+  chat.appendChild(d);
+
+  events.push({ text: text, date: new Date() });
+  updateDiary();
+  saveToStorage();
+
+  var typing = document.createElement('div');
+  typing.className = 'msg';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+
+  var resp = await askOracle(text);
+  responseIdx++;
+
+  if (typing.parentNode) chat.removeChild(typing);
+
+  var evtWord = events.length === 1 ? 'событие' : (events.length < 5 ? 'события' : 'событий');
+  var metaText = useAI
+    ? 'AI-оракул • карта + ' + events.length + ' ' + evtWord
+    : 'На основе карты + ' + events.length + ' ' + evtWord;
+  addOracleMsg(resp, metaText);
+
+  if (events.length === 3) {
+    setTimeout(function() {
+      var pc = document.createElement('div');
+      pc.className = 'pattern-card';
+      pc.innerHTML =
+        '<div class="label"><div class="pattern-icon"><div class="pattern-icon-inner"></div></div>Паттерн обнаружен</div>' +
+        '<p>Ты склонен описывать <span class="hl">межличностное напряжение</span> во второй половине месяца. 3 из 3 событий совпадают. Следующее окно риска: <span class="hl">14–19 декабря</span></p>';
+      chat.appendChild(pc);
+      chat.scrollTop = chat.scrollHeight;
+      updatePatternCount();
+    }, 900);
+  }
+
+  if (responseIdx % 4 === 0) {
+    setTimeout(function() { addViralCard(); }, 1200);
+  }
+}
+
+function updateDiary() {
+  var dl = document.getElementById('diaryList');
+  var months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  var entriesHtml = events.map(function(e) {
+    var d = e.date;
+    var moon = getMoonPhase(d);
+    var de = getDayElement(d);
+    var dt = dailyTarot(d);
+    return '<div class="diary-entry">' +
+      '<div class="date">' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ', ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0') + '</div>' +
+      '<div class="text">' + escapeHtml(e.text) + '</div>' +
+      '<div class="transit">' + moon.icon + ' ' + moon.name + ', ' + moon.day + '-й л.д. • ' + de.ruler + ' • ' + dt.name + '</div>' +
+    '</div>';
+  }).reverse().join('');
+  dl.innerHTML = buildDiaryPatterns() +
+    '<div class="diary-section-label"><div class="pattern-icon"><div class="pattern-icon-inner"></div></div>Записи</div>' +
+    entriesHtml;
+  document.getElementById('addEntryBtn').style.display = 'flex';
+  document.getElementById('diaryDot').style.display = 'block';
+  var ec = document.getElementById('eventCount');
+  if (ec) ec.textContent = events.length;
+  updatePatternCount();
+}
+
+function addDiaryEntry() {
+  switchScreen('oracle');
+  document.getElementById('msgInput').focus();
+}
+
+function shareLink() {
+  if (navigator.share) {
+    navigator.share({
+      title: 'Велес — AI Оракул',
+      text: 'Оракул видит связь между нами. Узнай, что нас связывает:',
+      url: window.location.href
+    });
+  } else {
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = 'Ссылка скопирована!';
+    document.body.appendChild(t);
+    setTimeout(function() { t.remove(); }, 2000);
+  }
+}
+
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('screen-' + name).classList.add('active');
+  var tabs = ['oracle','diary','bonds','profile'];
+  document.querySelectorAll('.nav-item').forEach(function(n, i) {
+    var isActive = tabs[i] === name;
+    n.classList.toggle('active', isActive);
+  });
+  document.getElementById('addEntryBtn').style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
+  if (name === 'diary') document.getElementById('diaryDot').style.display = 'none';
+}
+
+document.getElementById('msgInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') sendMessage();
+});
+
+document.getElementById('birthInput').addEventListener('input', function() {
+  this.style.borderColor = 'rgba(100,70,180,0.15)';
+  this.style.background = 'rgba(255,255,255,0.04)';
+});
+
+// Автозагрузка при открытии
+if (loadFromStorage()) {
+  startApp(true);
+}
+</script>
+
+</body>
+</html>
