@@ -103,9 +103,13 @@ sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 
 ```bash
 cd /var/www/oracle_viles
-git pull
-npm ci
-pm2 restart oracle-viles
+bash scripts/update-vps.sh
+```
+
+Если проект лежит в другой папке или сервис PM2 назван иначе:
+
+```bash
+APP_DIR=/var/www/oracle_viles PM2_APP=oracle-viles BRANCH=main bash scripts/update-vps.sh
 ```
 
 ## Полезные команды
