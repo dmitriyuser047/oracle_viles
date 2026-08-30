@@ -1,10 +1,12 @@
 {
   "name": "veles-prototype",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Veles AI oracle prototype",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "check": "node --check server.js"
   },
   "keywords": [],
   "author": "",
