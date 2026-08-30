@@ -150,11 +150,28 @@
 
   /* Input bar */
   .input-bar {
-    padding: 10px 16px 30px; display: flex; gap: 10px;
+    padding: 8px 16px 30px; display: flex; gap: 10px;
     align-items: center;
     background: linear-gradient(transparent 0%, #08080f 50%);
     position: sticky; bottom: 0;
   }
+  .composer {
+    position: sticky; bottom: 0;
+    background: linear-gradient(transparent 0%, #08080f 32%);
+  }
+  .oracle-modes {
+    padding: 12px 16px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .mode-btn {
+    height: 36px; border-radius: 18px; border: 0.5px solid rgba(100,70,180,0.16);
+    background: rgba(255,255,255,0.035); color: #80759f; font-size: 13px;
+    font-family: inherit; cursor: pointer; transition: all 0.2s;
+  }
+  .mode-btn.active {
+    color: #e7ddff; border-color: rgba(150,115,230,0.38);
+    background: rgba(120,80,220,0.16);
+  }
+  .mode-btn:active { transform: scale(0.97); }
   .input-bar input {
     flex: 1; background: rgba(255,255,255,0.04);
     border: 0.5px solid rgba(100,70,180,0.15); border-radius: 24px;
@@ -495,11 +512,17 @@
       <div class="header-sub" id="userSign"></div>
     </div>
     <div class="chat-area" id="chatArea"></div>
-    <div class="input-bar">
-      <input type="text" id="msgInput" placeholder="Расскажи оракулу, что произошло...">
-      <button class="send-btn" onclick="sendMessage()">
-        <svg viewBox="0 0 18 18" fill="none"><path d="M3 15L15 3M15 3H7M15 3V11" stroke="#f0ecf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+    <div class="composer">
+      <div class="oracle-modes">
+        <button class="mode-btn active" id="modeOracle" onclick="setOracleMode('oracle')">Оракул</button>
+        <button class="mode-btn" id="modeTarot" onclick="setOracleMode('tarot')">Расклад таро</button>
+      </div>
+      <div class="input-bar">
+        <input type="text" id="msgInput" placeholder="Расскажи оракулу, что произошло...">
+        <button class="send-btn" onclick="sendMessage()">
+          <svg viewBox="0 0 18 18" fill="none"><path d="M3 15L15 3M15 3H7M15 3V11" stroke="#f0ecf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1034,6 +1057,56 @@ function dailyTarot(date) {
   return tarotMajor[seed % 22];
 }
 
+function hashText(value) {
+  var text = String(value || '');
+  var hash = 0;
+  for (var i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function buildTarotSpread(message) {
+  var seed = hashText([
+    userName,
+    userBirthValue,
+    new Date().toLocaleDateString('ru-RU'),
+    message
+  ].join('|'));
+  var used = {};
+  var positions = [
+    {
+      title: 'Корень вопроса',
+      prompt: 'что на самом деле питает ситуацию'
+    },
+    {
+      title: 'Скрытая сила и тень',
+      prompt: 'где ресурс человека и какая ловушка рядом'
+    },
+    {
+      title: 'Ближайший шаг',
+      prompt: 'что сделать в ближайшие дни'
+    }
+  ];
+
+  return positions.map(function(pos, idx) {
+    var cardIdx = (seed + idx * 7 + personalDay(userBirth.getDate(), userBirth.getMonth() + 1)) % tarotMajor.length;
+    while (used[cardIdx]) cardIdx = (cardIdx + 1) % tarotMajor.length;
+    used[cardIdx] = true;
+    var card = tarotMajor[cardIdx];
+    var reversed = ((seed + idx + cardIdx) % 5) === 0;
+    return {
+      position: pos.title,
+      prompt: pos.prompt,
+      card: card.name,
+      meaning: card.meaning,
+      orientation: reversed ? 'перевёрнутая' : 'прямая',
+      nuance: reversed ? 'тень, задержка или искажённое проявление' : 'открытая сила карты'
+    };
+  });
+}
+
 // Матрица Судьбы: упрощённая модель на 22 арканах
 function matrixReduce(n) {
   while (n > 22) n = String(n).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
@@ -1548,6 +1621,7 @@ function buildDiary() {
 
 let responseIdx = 0;
 let useAI = true;
+let oracleMode = 'oracle';
 
 const fallbackResponses = [
   function(n, s) { return 'Я чувствую, как твоя энергия смещается, ' + n + '. Как ' + s + ', ты ощущаешь это нутром. Прислушайся к тому, что говорит тело на этой неделе.'; },
@@ -1557,6 +1631,20 @@ const fallbackResponses = [
   function(n, s) { return n + ', то что ты описываешь — классическая энергия ' + s + ' под этим транзитом. Ты чувствовал это раньше — в сентябре. Помнишь?'; },
   function(n, s) { return 'Это цикл, который замыкается. То, что началось месяцы назад, подходит к развязке. Не форсируй результат — дай ему прийти самому.'; },
 ];
+
+function setOracleMode(mode) {
+  oracleMode = mode === 'tarot' ? 'tarot' : 'oracle';
+  var oracleBtn = document.getElementById('modeOracle');
+  var tarotBtn = document.getElementById('modeTarot');
+  var input = document.getElementById('msgInput');
+  if (oracleBtn) oracleBtn.classList.toggle('active', oracleMode === 'oracle');
+  if (tarotBtn) tarotBtn.classList.toggle('active', oracleMode === 'tarot');
+  if (input) {
+    input.placeholder = oracleMode === 'tarot'
+      ? 'Сформулируй вопрос для расклада...'
+      : 'Расскажи оракулу, что произошло...';
+  }
+}
 
 function buildEsotericContext(message) {
   var bv = userBirthValue || document.getElementById('birthInput')?.value || '';
@@ -1634,6 +1722,10 @@ async function askOracle(message) {
     var ctx = buildEsotericContext(message);
     ctx.events = eventsForApi;
     ctx.message = message;
+    ctx.requestMode = oracleMode === 'tarot' ? 'tarot_spread' : 'oracle';
+    if (ctx.requestMode === 'tarot_spread') {
+      ctx.tarotSpread = buildTarotSpread(message);
+    }
 
     var response = await fetch('/api/oracle', {
       method: 'POST',
@@ -1705,7 +1797,7 @@ async function sendMessage() {
 
   var evtWord = events.length === 1 ? 'событие' : (events.length < 5 ? 'события' : 'событий');
   var metaText = useAI
-    ? 'AI-оракул • карта + ' + events.length + ' ' + evtWord
+    ? (oracleMode === 'tarot' ? 'AI-оракул • расклад таро + ' : 'AI-оракул • карта + ') + events.length + ' ' + evtWord
     : 'На основе карты + ' + events.length + ' ' + evtWord;
   addOracleMsg(resp, metaText);
 
