@@ -765,30 +765,60 @@ app.post('/api/oracle', async (req, res) => {
 
     const systemText = getPromptForMode(b.requestMode) + `\n\n=== КАРТА ЧЕЛОВЕКА ===\n${userData}\n\n=== КНИЖНЫЙ СЛОЙ ЗНАНИЙ ===\n${bookKnowledgeText}\n\n=== ЗАПИСАННЫЕ СОБЫТИЯ ===\n${eventsText}\n\n=== СИГНАЛЫ ПСИХИАТРИЧЕСКОЙ БЕЗОПАСНОСТИ ===\n${mentalHealthSignals}\n\n=== ПРАВИЛО ХРОНИКИ ===\n${chronicleText}`;
 
-    const response = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + GROQ_API_KEY
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen3.8-27b',
-        messages: [
-          { role: 'system', content: systemText },
-          { role: 'user', content: b.message }
-        ],
-        temperature: 0.65,
-        max_tokens: getMaxTokensForMode(b.requestMode)
-      })
+    const groqBody = JSON.stringify({
+      model: 'qwen/qwen3.8-27b',
+      messages: [
+        { role: 'system', content: systemText },
+        { role: 'user', content: b.message }
+      ],
+      temperature: 0.65,
+      max_tokens: getMaxTokensForMode(b.requestMode)
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('Groq error:', err);
-      return res.status(500).json({ error: 'Ошибка Groq API' });
+    let data = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + GROQ_API_KEY
+          },
+          body: groqBody
+        });
+
+        if (response.status === 429) {
+          const wait = Math.min((attempt + 1) * 2000, 5000);
+          console.warn(`Groq rate limit (attempt ${attempt + 1}/3), waiting ${wait}ms...`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+
+        if (!response.ok) {
+          const err = await response.text();
+          console.error(`Groq error (attempt ${attempt + 1}/3):`, err);
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
+            continue;
+          }
+          return res.status(500).json({ error: 'Ошибка Groq API' });
+        }
+
+        data = await response.json();
+        break;
+      } catch (fetchErr) {
+        console.error(`Groq fetch error (attempt ${attempt + 1}/3):`, fetchErr.message);
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
+          continue;
+        }
+        return res.status(500).json({ error: 'Ошибка связи с AI' });
+      }
     }
 
-    const data = await response.json();
+    if (!data) {
+      return res.status(500).json({ error: 'AI не ответил после 3 попыток' });
+    }
     const rawReply = data.choices?.[0]?.message?.content || 'Звёзды молчат... Попробуй позже.';
     const reply = polishReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b)), b));
     console.log('Groq reply:', reply);

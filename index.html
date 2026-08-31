@@ -2186,21 +2186,32 @@ async function askOracle(message, options) {
       ctx.profileFocus = options.profileFocus;
     }
 
-    var response = await fetch('/api/oracle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ctx)
-    });
-
-    if (!response.ok) throw new Error('API error');
-    var data = await response.json();
-    useAI = true;
-    return data.reply;
-  } catch(err) {
+    var lastErr = null;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        var response = await fetch('/api/oracle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ctx)
+        });
+        if (!response.ok) throw new Error('API error ' + response.status);
+        var data = await response.json();
+        if (data.reply) {
+          useAI = true;
+          return data.reply;
+        }
+        throw new Error('empty reply');
+      } catch(err) {
+        lastErr = err;
+        if (attempt < 1) {
+          await new Promise(function(r) { setTimeout(r, 2000); });
+        }
+      }
+    }
+    console.error('Oracle failed after retries:', lastErr);
     useAI = false;
     var sign = signsRu[userSignIdx];
     return fallbackResponses[responseIdx % fallbackResponses.length](userName, sign);
-  }
 }
 
 async function requestMatrixArcana(label, num, desc) {
