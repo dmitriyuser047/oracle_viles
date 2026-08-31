@@ -549,6 +549,9 @@ app.post('/api/oracle', async (req, res) => {
 
     const userMessage = `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
 
+    console.log('DEBUG systemText (first 300):', systemText.substring(0, 300));
+    console.log('DEBUG userMessage:', userMessage);
+
     const groqBody = JSON.stringify({
       model: 'qwen/qwen3.8-27b',
       messages: [
