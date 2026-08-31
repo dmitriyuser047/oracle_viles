@@ -2161,7 +2161,6 @@ function buildEsotericContext(message) {
 }
 
 async function askOracle(message, options) {
-  try {
     var eventsForApi = events.map(function(e) {
       return { text: e.text, date: e.date.toLocaleDateString('ru-RU') };
     });
