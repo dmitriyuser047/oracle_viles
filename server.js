@@ -349,11 +349,11 @@ function getPromptForMode(mode) {
 }
 
 function getMaxTokensForMode(mode) {
-  if (mode === 'rune_code') return 900;
-  if (mode === 'profile_item') return 800;
-  if (mode === 'matrix_arcana') return 800;
-  if (mode === 'tarot_spread') return 900;
-  return 800;
+  if (mode === 'rune_code') return 700;
+  if (mode === 'profile_item') return 600;
+  if (mode === 'matrix_arcana') return 600;
+  if (mode === 'tarot_spread') return 700;
+  return 600;
 }
 
 function sectionText(title, items) {
@@ -463,7 +463,7 @@ function selectMonosovKnowledge(b) {
   }
 
   let text = blocks.filter(Boolean).join('\n\n');
-  if (text.length > 1500) text = text.substring(0, 1500);
+  if (text.length > 800) text = text.substring(0, 800);
   return text || '';
 }
 
@@ -525,13 +525,12 @@ app.post('/api/oracle', async (req, res) => {
 
       return baseUserData.concat([
       ``,
-      `АСТРОЛОГИЯ: знак зодиака = ${b.zodiac}, стихия = ${b.element}, управитель = ${b.planet}`,
-      `НУМЕРОЛОГИЯ: жизненный путь = ${b.lifePath}, судьба = ${b.destiny}, душа = ${b.soul}, личность = ${b.personality}, зрелость = ${b.maturity}`,
-      `ЦИКЛЫ: персональный год = ${b.personalYear}, месяц = ${b.personalMonth}, день = ${b.personalDay}`,
-      `ТАРО: карта рождения = ${b.birthTarot}, карта года = ${b.yearTarot}, карта дня = ${b.dailyTarot}`,
-      `РУНЫ: руна рождения = ${b.birthRune}, руна дня = ${b.dailyRune}`,
-      `ТОТЕМ: ${b.totem || '—'}`,
-      `МАТРИЦА СУДЬБЫ: характер=${b.matrix?.character || '—'}, карма=${b.matrix?.karma || '—'}, дух=${b.matrix?.spirit || '—'}, талант=${b.matrix?.talent || '—'}, хвост=${b.matrix?.tail || '—'}, деньги=${b.matrix?.money || '—'}, отношения=${b.matrix?.relations || '—'}, миссия=${b.matrix?.mission || '—'}`,
+      `Знак: ${b.zodiac}, стихия: ${b.element}, управитель: ${b.planet}`,
+      `Числа: путь=${b.lifePath}, судьба=${b.destiny}, душа=${b.soul}`,
+      `Циклы: год=${b.personalYear}, месяц=${b.personalMonth}, день=${b.personalDay}`,
+      `Таро: рождения=${b.birthTarot}, дня=${b.dailyTarot}`,
+      `Руны: рождения=${b.birthRune}, дня=${b.dailyRune}`,
+      `Тотем: ${b.totem || '—'}`,
       ]).join('\n');
     })();
 
@@ -607,6 +606,15 @@ app.post('/api/oracle', async (req, res) => {
     let rawReply = data.choices?.[0]?.message?.content || 'Звёзды молчат... Попробуй позже.';
     rawReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     if (!rawReply) rawReply = 'Звёзды молчат... Попробуй позже.';
+    if (b.userName) {
+      rawReply = rawReply.replace(/имя\s+тво[её]\s+скрыто[^.]*\./gi, `${b.userName}, Велес видит тебя.`);
+      rawReply = rawReply.replace(/имя\s+(неизвестно|не\s+названо|не\s+указано|скрыто)[^.]*\./gi, `${b.userName}, Велес слышит тебя.`);
+      rawReply = rawReply.replace(/нет\s+ни\s+имени[^.]*\./gi, '');
+      rawReply = rawReply.replace(/не\s+назвал\s+себя[^.]*\./gi, '');
+      rawReply = rawReply.replace(/заполни\s+карту[^.]*\./gi, '');
+      rawReply = rawReply.replace(/вернись\s+с\s+(точными\s+)?данными[^.]*\./gi, '');
+      rawReply = rawReply.replace(/пустот[а-яё]*\s+запроса[^.]*\./gi, '');
+    }
     const reply = polishReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b)), b));
     console.log('Groq reply:', reply);
 
