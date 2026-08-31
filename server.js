@@ -548,7 +548,7 @@ app.post('/api/oracle', async (req, res) => {
     if (mentalHealthSignals.includes('Уровень внимания')) parts.push(`\n=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
     const systemText = parts.join('');
 
-    const userMessage = `Вопрос от ${b.userName}: ${b.message}`;
+    const userMessage = `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
 
     const groqBody = JSON.stringify({
       model: 'qwen/qwen3.8-27b',
