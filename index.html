@@ -380,7 +380,14 @@
   .stat-row {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 0; border-bottom: 0.5px solid rgba(100,70,180,0.06);
+    cursor: pointer; border-radius: 8px;
+    transition: background 0.2s, padding-left 0.2s, padding-right 0.2s;
   }
+  .stat-row:hover {
+    background: rgba(120,80,220,0.08);
+    padding-left: 8px; padding-right: 8px;
+  }
+  .stat-row:active { background: rgba(120,80,220,0.14); }
   .stat-row:last-child { border: none; }
   .stat-label { font-size: 13.5px; color: #8a7aaa; }
   .stat-value { font-size: 13.5px; color: #ccc4e4; font-weight: 500; }
@@ -431,6 +438,25 @@
     padding: 8px 0 16px; text-align: center;
   }
   .matrix-wrap svg { max-width: 100%; height: auto; }
+  .matrix-node {
+    cursor: pointer;
+    outline: none;
+  }
+  .matrix-node .matrix-node-circle,
+  .matrix-node .matrix-node-center,
+  .matrix-node .matrix-num {
+    transition: all 0.2s;
+  }
+  .matrix-node:hover .matrix-node-circle,
+  .matrix-node:focus .matrix-node-circle {
+    fill: rgba(150,115,230,0.25); stroke: rgba(190,150,255,0.72);
+  }
+  .matrix-node:hover .matrix-node-center,
+  .matrix-node:focus .matrix-node-center {
+    fill: rgba(150,115,230,0.34); stroke: rgba(220,190,255,0.82);
+  }
+  .matrix-node:hover .matrix-num,
+  .matrix-node:focus .matrix-num { fill: #f1eaff; }
   .matrix-node-circle { fill: rgba(120,80,220,0.15); stroke: rgba(120,80,220,0.4); stroke-width: 1.5; }
   .matrix-node-center { fill: rgba(120,80,220,0.25); stroke: rgba(180,140,255,0.5); stroke-width: 2; }
   .matrix-num { fill: #c4b0f0; font-size: 14px; font-weight: 700; font-family: inherit; }
@@ -834,6 +860,188 @@ function activeChakra(dateStr, bDay, bMonth) {
   return chakraFromNumber(lifePathNumber(dateStr) + personalDay(bDay, bMonth));
 }
 
+const totemAnimals = [
+  {
+    name:'Волк',
+    element:'Земля и ночь',
+    archetype:'проводник стаи и хранитель границы',
+    gift:'верность себе, чутьё на своих людей, умение идти долго',
+    shadow:'одиночество из гордости, недоверие, резкая защита территории',
+    instinct:'сначала слушает тишину, потом выбирает направление',
+    protection:'держит круг близких и не пускает случайное в личное пространство',
+    relations:'нужна честность, преданность и ясные правила близости',
+    work:'силён там, где нужен маршрут, стратегия и ответственность за своих',
+    practice:'на этой неделе убери один чужой голос из решения и выбери свой след',
+    phrase:'Я знаю свою стаю и свой путь'
+  },
+  {
+    name:'Медведь',
+    element:'Земля',
+    archetype:'хранитель силы, тела и внутренней берлоги',
+    gift:'выносливость, глубокая опора, способность защищать без суеты',
+    shadow:'инертность, накопленная злость, уход в тяжёлое молчание',
+    instinct:'сначала набирает силу, потом делает один мощный шаг',
+    protection:'через тело, сон, еду, дом и восстановление границ',
+    relations:'любит тепло и надёжность, но не терпит давления',
+    work:'силён в долгих задачах, где важны терпение и устойчивый результат',
+    practice:'верни телу режим: сон, плотная еда, порядок в одном углу дома',
+    phrase:'Моя сила спокойна и весома'
+  },
+  {
+    name:'Лиса',
+    element:'Огонь и сумерки',
+    archetype:'хитрый разведчик, мастер обходного пути',
+    gift:'гибкость, наблюдательность, умение находить дверь там, где видят стену',
+    shadow:'избегание прямого разговора, игра вместо честного выбора',
+    instinct:'считывает настроение пространства раньше слов',
+    protection:'через лёгкость, манёвр и отказ спорить там, где можно выйти иначе',
+    relations:'нужна свобода, интерес и партнёр, который не ставит клетку',
+    work:'силён в переговорах, идеях, рекламе, поиске нестандартного решения',
+    practice:'найди третий вариант между атакой и отступлением',
+    phrase:'Я вижу ход, который скрыт от шума'
+  },
+  {
+    name:'Ворон',
+    element:'Воздух и тень',
+    archetype:'вестник знаков, памяти и переходов',
+    gift:'умение видеть смысл в совпадениях, читать скрытый слой событий',
+    shadow:'застревание в мрачных знаках, подозрительность, тяга к драме',
+    instinct:'замечает слово, взгляд или паузу, где меняется ход судьбы',
+    protection:'через наблюдение, молчание и точную речь в нужный момент',
+    relations:'нужна глубина, интеллектуальная связь и уважение к тайне',
+    work:'силён в анализе, письме, исследовании, кризисных переходах',
+    practice:'запиши три знака дня и отдели факт от толкования',
+    phrase:'Я вижу знак, но не становлюсь его пленником'
+  },
+  {
+    name:'Олень',
+    element:'Воздух и лес',
+    archetype:'тонкий проводник красоты, достоинства и мягкой силы',
+    gift:'чуткость, благородство, способность проходить через грубость не грубея',
+    shadow:'пугливость, уход от конфликта, зависимость от чужой оценки',
+    instinct:'чувствует опасность раньше, чем ум успевает объяснить',
+    protection:'через дистанцию, изящество и право не входить в грубую энергию',
+    relations:'нужны бережность, уважение и пространство для доверия',
+    work:'силён там, где важны вкус, дипломатия, эстетика и тонкое влияние',
+    practice:'не доказывай силу громкостью; сделай один красивый точный шаг',
+    phrase:'Моя мягкость не делает меня слабым'
+  },
+  {
+    name:'Змея',
+    element:'Земля и вода',
+    archetype:'хранительница обновления, кожи и скрытой силы',
+    gift:'трансформация, глубинное чутьё, умение сбрасывать старое',
+    shadow:'скрытая обида, соблазн манипулировать, холодная закрытость',
+    instinct:'чувствует, где энергия уже мертва и требует смены формы',
+    protection:'через тишину, границу и отказ отдавать силу лишним людям',
+    relations:'нужна честность без вторжения и уважение к личной глубине',
+    work:'силён в кризисах, терапии смыслов, деньгах, тайных процессах',
+    practice:'назови одну старую кожу, которую пора снять без сожаления',
+    phrase:'Я обновляюсь и не тащу мёртвое дальше'
+  },
+  {
+    name:'Сова',
+    element:'Воздух и ночь',
+    archetype:'ночной наблюдатель, мудрость тишины и точного зрения',
+    gift:'видеть в темноте, понимать мотивы, сохранять ясность в неопределённости',
+    shadow:'отстранённость, холод, жизнь в наблюдении вместо участия',
+    instinct:'молчит, пока картина не сложится целиком',
+    protection:'через паузу, сон, уединение и отказ от поспешных ответов',
+    relations:'нужен человек, который уважает тишину и не требует мгновенной реакции',
+    work:'силён в диагностике, обучении, стратегии, разборе сложных систем',
+    practice:'дай вопросу ночь; утром запиши первое спокойное понимание',
+    phrase:'Я вижу ясно, когда не тороплюсь'
+  },
+  {
+    name:'Рысь',
+    element:'Земля и снег',
+    archetype:'скрытый следопыт, независимость и точный прыжок',
+    gift:'самостоятельность, зоркость, умение ждать правильный момент',
+    shadow:'закрытость, недоверие к помощи, резкий уход без объяснений',
+    instinct:'идёт тихо и не показывает намерение раньше времени',
+    protection:'через приватность, наблюдение и точное дозирование близости',
+    relations:'нужна свобода и уважение к личным границам',
+    work:'силён в самостоятельных проектах, расследовании, точечной экспертизе',
+    practice:'не рассказывай план всем; сделай один тихий шаг до объявления',
+    phrase:'Я выбираю момент и действую точно'
+  },
+  {
+    name:'Конь',
+    element:'Огонь и ветер',
+    archetype:'движение, верность пути и сила живого ритма',
+    gift:'энергия, скорость, тяга к простору, способность нести дело вперёд',
+    shadow:'нетерпение, бегство от тяжёлого чувства, страх узды',
+    instinct:'чувствует, где путь открыт, а где дорога давит грудь',
+    protection:'через движение, честный темп и отказ от чужой упряжи',
+    relations:'нужна свобода вместе, а не контроль под видом заботы',
+    work:'силён в запусках, поездках, продажах, развитии новых направлений',
+    practice:'сделай путь телом: прогулка, дорога, звонок, первый запуск',
+    phrase:'Я бегу своим ходом и несу свою силу'
+  },
+  {
+    name:'Ястреб',
+    element:'Воздух и солнце',
+    archetype:'высокий обзор, фокус и точный удар',
+    gift:'видение цели, быстрая оценка ситуации, умение отсечь лишнее',
+    shadow:'жёсткость, нетерпимость к слабости, одиночный контроль сверху',
+    instinct:'поднимается выше эмоций, чтобы увидеть направление',
+    protection:'через дистанцию, ясный фокус и один выбранный приоритет',
+    relations:'нужна честность и уважение к личной миссии',
+    work:'силён в управлении, стратегии, запуске, выборе главного',
+    practice:'сократи список до одной цели и одного действия на сегодня',
+    phrase:'Я вижу главное и выбираю точный удар'
+  },
+  {
+    name:'Бык',
+    element:'Земля',
+    archetype:'земная мощь, ресурс и терпеливое воплощение',
+    gift:'надёжность, способность строить, держать обещание и копить силу',
+    shadow:'упрямство, страх перемен, тяжесть накопленных обязательств',
+    instinct:'проверяет почву и не двигается, пока не почувствует опору',
+    protection:'через режим, деньги, тело, договор и понятные границы',
+    relations:'нужна стабильность, уважение к труду и отсутствие игр',
+    work:'силён в материальных проектах, финансах, строительстве, ремесле',
+    practice:'закрепи намерение материально: оплата, запись, договор, порядок',
+    phrase:'Я строю медленно, но надолго'
+  },
+  {
+    name:'Лебедь',
+    element:'Вода и воздух',
+    archetype:'чистота чувства, красота перехода и верность сердцу',
+    gift:'гармония, эстетика, способность смягчать пространство',
+    shadow:'идеализация, обида из-за несовершенства, уход в красивую мечту',
+    instinct:'ищет лад и чувствует фальшь в отношениях',
+    protection:'через достоинство, красоту быта и честность сердечного выбора',
+    relations:'нужны взаимность, нежность и ясность намерений',
+    work:'силён в творчестве, красоте, медиации, создании атмосферы',
+    practice:'убери одну фальшивую ноту: в слове, обещании или ожидании',
+    phrase:'Я выбираю красоту без самообмана'
+  }
+];
+
+function getTotemAnimal(dateStr, signIdx) {
+  var digits = String(dateStr || '').replace(/-/g,'').split('').reduce(function(sum, part) {
+    return sum + (parseInt(part, 10) || 0);
+  }, 0);
+  var seed = digits + lifePathNumber(dateStr) * 3 + (signIdx + 1) * 5 + userName.length;
+  return totemAnimals[Math.abs(seed) % totemAnimals.length];
+}
+
+function formatTotem(totem) {
+  return [
+    totem.name + ' — ' + totem.archetype,
+    'Стихия: ' + totem.element,
+    'Дар: ' + totem.gift,
+    'Тень: ' + totem.shadow,
+    'Инстинкт: ' + totem.instinct,
+    'Защита: ' + totem.protection,
+    'Отношения: ' + totem.relations,
+    'Дело: ' + totem.work,
+    'Практика: ' + totem.practice,
+    'Фраза силы: ' + totem.phrase
+  ].join('\n');
+}
+
 const alchemyStages = [
   { name:'Нигредо', sphere:'кризис, тень, распад старого', light:'честное очищение', shadow:'застревание в мраке и самокопании', practice:'назови, что должно уйти, и не тащи это в следующий шаг' },
   { name:'Альбедо', sphere:'очищение, тишина, восстановление', light:'ясность после смуты', shadow:'холодная отстранённость и бегство от чувства', practice:'сделай паузу, очисти пространство и отдели факт от страха' },
@@ -1138,6 +1346,10 @@ function dailyTarot(date) {
   return tarotMajor[seed % 22];
 }
 
+function jsString(value) {
+  return JSON.stringify(String(value || '')).replace(/</g, '\\u003c');
+}
+
 function hashText(value) {
   var text = String(value || '');
   var hash = 0;
@@ -1290,15 +1502,15 @@ function buildMatrixSVG(mx) {
   var snr = 14; // small node radius
 
   var nodes = [
-    { x: cx, y: cy - r, num: mx.character.num, label: 'ХАРАКТЕР', main: true },       // 0 top (A)
-    { x: cx + r, y: cy, num: mx.connection.num, label: 'СВЯЗЬ', main: true },          // 1 right (B)
-    { x: cx, y: cy + r, num: mx.karma.num, label: 'КАРМА', main: true },               // 2 bottom (C)
-    { x: cx - r, y: cy, num: mx.spirit.num, label: 'ДУХ', main: true },                // 3 left (D)
-    { x: cx + r*0.5, y: cy - r*0.5, num: mx.comfort.num, label: 'КОМФОРТ', main: false }, // 4 top-right (E)
-    { x: cx + r*0.5, y: cy + r*0.5, num: mx.talent.num, label: 'ТАЛАНТ', main: false },   // 5 bottom-right (F)
-    { x: cx - r*0.5, y: cy + r*0.5, num: mx.growth.num, label: 'РОСТ', main: false },     // 6 bottom-left (G)
-    { x: cx - r*0.5, y: cy - r*0.5, num: mx.tail.num, label: 'КАРМ.ХВОСТ', main: false }, // 7 top-left (H)
-    { x: cx, y: cy, num: mx.missionGeneral.num, label: 'МИССИЯ', main: true },             // 8 center
+    { x: cx, y: cy - r, num: mx.character.num, label: 'ХАРАКТЕР', fullLabel: 'Характер', desc: mx.character.desc, main: true },
+    { x: cx + r, y: cy, num: mx.connection.num, label: 'СВЯЗЬ', fullLabel: 'Связь с миром', desc: mx.connection.desc, main: true },
+    { x: cx, y: cy + r, num: mx.karma.num, label: 'КАРМА', fullLabel: 'Карма', desc: mx.karma.desc, main: true },
+    { x: cx - r, y: cy, num: mx.spirit.num, label: 'ДУХ', fullLabel: 'Духовная задача', desc: mx.spirit.desc, main: true },
+    { x: cx + r*0.5, y: cy - r*0.5, num: mx.comfort.num, label: 'КОМФОРТ', fullLabel: 'Зона комфорта', desc: mx.comfort.desc, main: false },
+    { x: cx + r*0.5, y: cy + r*0.5, num: mx.talent.num, label: 'ТАЛАНТ', fullLabel: 'Зона таланта', desc: mx.talent.desc, main: false },
+    { x: cx - r*0.5, y: cy + r*0.5, num: mx.growth.num, label: 'РОСТ', fullLabel: 'Духовный рост', desc: mx.growth.desc, main: false },
+    { x: cx - r*0.5, y: cy - r*0.5, num: mx.tail.num, label: 'КАРМ.ХВОСТ', fullLabel: 'Кармический хвост', desc: mx.tail.desc, main: false },
+    { x: cx, y: cy, num: mx.missionGeneral.num, label: 'МИССИЯ', fullLabel: 'Предназначение', desc: mx.missionGeneral.desc, main: true },
   ];
 
   var lines = [
@@ -1320,6 +1532,9 @@ function buildMatrixSVG(mx) {
     var n = nodes[j];
     var rad = n.main ? nr : snr;
     var circleClass = j === 8 ? 'matrix-node-center' : 'matrix-node-circle';
+    var action = 'requestMatrixArcana(' + jsString(n.fullLabel) + ',' + n.num + ',' + jsString(n.desc) + ')';
+    svg += '<g class="matrix-node" role="button" aria-label="Разобрать ' + escapeHtml(n.fullLabel) + ', аркан ' + n.num + '" onclick=\'' + action + '\'>';
+    svg += '<title>' + escapeHtml(n.fullLabel + ': ' + n.desc) + '</title>';
     svg += '<circle cx="'+n.x+'" cy="'+n.y+'" r="'+rad+'" class="'+circleClass+'"/>';
     svg += '<text x="'+n.x+'" y="'+(n.y+5)+'" text-anchor="middle" class="matrix-num">' + n.num + '</text>';
     var ly = n.y + rad + 12;
@@ -1327,6 +1542,7 @@ function buildMatrixSVG(mx) {
     if (j === 0 || j === 4 || j === 7) ly = n.y - rad - 5;
     if (j === 8) ly = n.y + rad + 13;
     svg += '<text x="'+n.x+'" y="'+ly+'" text-anchor="middle" class="matrix-label">' + n.label + '</text>';
+    svg += '</g>';
   }
 
   // Money & Relations labels on sides
@@ -1472,8 +1688,7 @@ function buildProfile(zi, bv) {
   var dr = dailyRune(new Date());
   var bc = birthChakra(bv);
   var ac = activeChakra(bv, bd, bm);
-  var bc = birthChakra(bv);
-  var ac = activeChakra(bv, bd, bm);
+  var totem = getTotemAnimal(bv, zi);
 
   var pc = document.getElementById('profileContent');
   pc.innerHTML =
@@ -1537,6 +1752,21 @@ function buildProfile(zi, bv) {
     '</div>' +
 
     '<div class="profile-card">' +
+      '<div class="card-label">Тотемное животное</div>' +
+      '<div class="stat-row"><span class="stat-label">Тотем</span><span class="stat-value accent">' + totem.name + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Стихия</span><span class="stat-value">' + totem.element + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Архетип</span><span class="stat-value">' + totem.archetype + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Дар</span><span class="stat-value good">' + totem.gift + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Тень</span><span class="stat-value warn">' + totem.shadow + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Инстинкт</span><span class="stat-value">' + totem.instinct + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Защита</span><span class="stat-value">' + totem.protection + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Отношения</span><span class="stat-value">' + totem.relations + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Дело</span><span class="stat-value">' + totem.work + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Практика</span><span class="stat-value good">' + totem.practice + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Фраза силы</span><span class="stat-value accent">' + totem.phrase + '</span></div>' +
+    '</div>' +
+
+    '<div class="profile-card">' +
       '<div class="card-label">Чакры</div>' +
       '<div class="stat-row"><span class="stat-label">Чакра рождения</span><span class="stat-value accent">' + bc.name + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Активная чакра</span><span class="stat-value accent">' + ac.name + '</span></div>' +
@@ -1574,6 +1804,29 @@ function buildProfile(zi, bv) {
       '<div class="stat-row"><span class="stat-label">Паттернов найдено</span><span class="stat-value" id="patternCount">0</span></div>' +
     '</div>' +
     '<button onclick="clearStorage()" style="width:100%;padding:14px;background:rgba(220,80,80,0.08);border:0.5px solid rgba(220,80,80,0.2);border-radius:14px;color:#c88080;font-size:14px;cursor:pointer;font-family:inherit;margin-top:8px;">Выйти и сбросить данные</button>';
+  bindProfileRows();
+}
+
+function bindProfileRows() {
+  document.querySelectorAll('#profileContent .profile-card').forEach(function(card) {
+    var section = card.querySelector('.card-label')?.textContent.trim() || 'Профиль';
+    card.querySelectorAll('.stat-row').forEach(function(row) {
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      row.title = 'Получить разбор';
+      row.onclick = function() {
+        var label = row.querySelector('.stat-label')?.textContent.trim() || 'Позиция';
+        var value = row.querySelector('.stat-value')?.textContent.trim() || '';
+        requestProfileInsight(section, label, value);
+      };
+      row.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          row.click();
+        }
+      };
+    });
+  });
 }
 
 function escapeHtml(value) {
@@ -1746,6 +1999,7 @@ function buildEsotericContext(message) {
   var dr = dailyRune(new Date());
   var bc = birthChakra(bv);
   var ac = activeChakra(bv, bd, bm);
+  var totem = getTotemAnimal(bv, userSignIdx);
   var engine = buildOracleEngine(message || '', bv, bd, bm);
 
   return {
@@ -1772,6 +2026,7 @@ function buildEsotericContext(message) {
     kabbalah: kb.name + ' — ' + kb.meaning + '. Практика: ' + kb.practice,
     birthRune: br.symbol + ' ' + br.name + ' — ' + br.meaning + '. Совет: ' + br.advice,
     dailyRune: dr.symbol + ' ' + dr.name + ' — ' + dr.meaning + '. Совет: ' + dr.advice,
+    totem: formatTotem(totem),
     birthChakra: bc.name + ' — ' + bc.area + '. Тень: ' + bc.shadow + '. Практика: ' + bc.practice,
     activeChakra: ac.name + ' — ' + ac.area + '. Тень: ' + ac.shadow + '. Практика: ' + ac.practice,
     oracleInsights: formatOracleInsights(engine),
@@ -1796,7 +2051,7 @@ function buildEsotericContext(message) {
   };
 }
 
-async function askOracle(message) {
+async function askOracle(message, options) {
   try {
     var eventsForApi = events.map(function(e) {
       return { text: e.text, date: e.date.toLocaleDateString('ru-RU') };
@@ -1805,9 +2060,15 @@ async function askOracle(message) {
     var ctx = buildEsotericContext(message);
     ctx.events = eventsForApi;
     ctx.message = message;
-    ctx.requestMode = oracleMode === 'tarot' ? 'tarot_spread' : 'oracle';
+    ctx.requestMode = options && options.requestMode ? options.requestMode : (oracleMode === 'tarot' ? 'tarot_spread' : 'oracle');
     if (ctx.requestMode === 'tarot_spread') {
       ctx.tarotSpread = buildTarotSpread(message);
+    }
+    if (options && options.matrixFocus) {
+      ctx.matrixFocus = options.matrixFocus;
+    }
+    if (options && options.profileFocus) {
+      ctx.profileFocus = options.profileFocus;
     }
 
     var response = await fetch('/api/oracle', {
@@ -1824,6 +2085,66 @@ async function askOracle(message) {
     var sign = signsRu[userSignIdx];
     return fallbackResponses[responseIdx % fallbackResponses.length](userName, sign);
   }
+}
+
+async function requestMatrixArcana(label, num, desc) {
+  var message = 'Разбери аркан матрицы: ' + label + ' — ' + num + ' ' + desc;
+  switchScreen('oracle');
+  setOracleMode('oracle');
+
+  var chat = document.getElementById('chatArea');
+  var d = document.createElement('div');
+  d.className = 'msg-user-wrap';
+  d.innerHTML = '<div class="msg-user">' + escapeHtml(label) + ': аркан ' + num + '</div>';
+  chat.appendChild(d);
+
+  var typing = document.createElement('div');
+  typing.className = 'msg';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+
+  var resp = await askOracle(message, {
+    requestMode: 'matrix_arcana',
+    matrixFocus: {
+      label: label,
+      num: num,
+      desc: desc
+    }
+  });
+
+  if (typing.parentNode) chat.removeChild(typing);
+  addOracleMsg(resp, 'AI-оракул • аркан матрицы');
+}
+
+async function requestProfileInsight(section, label, value) {
+  var message = 'Разбери позицию профиля: ' + section + ' — ' + label + ': ' + value;
+  switchScreen('oracle');
+  setOracleMode('oracle');
+
+  var chat = document.getElementById('chatArea');
+  var d = document.createElement('div');
+  d.className = 'msg-user-wrap';
+  d.innerHTML = '<div class="msg-user">' + escapeHtml(section + ' • ' + label) + '</div>';
+  chat.appendChild(d);
+
+  var typing = document.createElement('div');
+  typing.className = 'msg';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+
+  var resp = await askOracle(message, {
+    requestMode: 'profile_item',
+    profileFocus: {
+      section: section,
+      label: label,
+      value: value
+    }
+  });
+
+  if (typing.parentNode) chat.removeChild(typing);
+  addOracleMsg(resp, 'AI-оракул • позиция профиля');
 }
 
 function addOracleMsg(text, meta) {
