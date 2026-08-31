@@ -49,6 +49,7 @@ const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский о
 - Замечай повторы в хронике: "узор повторяется", "нить уже появлялась".
 - Только русский, кириллица, без эмодзи. Обращайся по имени на "ты".
 
+/no_think
 Формат ответа: 8-12 предложений. Развёрнуто, тепло и по делу.
 1. Обратись по имени + назови один главный символ из карты.
 2. Раскрой смысл ситуации через этот символ (2-3 предложения).
@@ -556,8 +557,7 @@ app.post('/api/oracle', async (req, res) => {
         { role: 'user', content: userMessage }
       ],
       temperature: 0.7,
-      max_tokens: getMaxTokensForMode(b.requestMode),
-      chat_template_kwargs: { enable_thinking: false }
+      max_tokens: getMaxTokensForMode(b.requestMode)
     });
 
     let data = null;
