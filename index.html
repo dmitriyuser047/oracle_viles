@@ -688,6 +688,34 @@ const signSymbols = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑'
 const elements = ['Огонь','Земля','Воздух','Вода','Огонь','Земля','Воздух','Вода','Огонь','Земля','Воздух','Вода'];
 const qualities = ['Кардинальный','Фиксированный','Мутабельный','Кардинальный','Фиксированный','Мутабельный','Кардинальный','Фиксированный','Мутабельный','Кардинальный','Фиксированный','Мутабельный'];
 const planets = ['Марс','Венера','Меркурий','Луна','Солнце','Меркурий','Венера','Плутон','Юпитер','Сатурн','Уран','Нептун'];
+const signProfiles = [
+  { archetype:'воин начала', gift:'быстро запускать движение и брать инициативу', shadow:'спешка, вспыльчивость, борьба ради борьбы', practice:'сначала выбери цель, потом делай один прямой шаг' },
+  { archetype:'хранитель ценности', gift:'создавать устойчивость, ресурс и телесную опору', shadow:'упрямство, страх перемен, привязка к комфорту', practice:'закрепи одно решение материальным действием' },
+  { archetype:'вестник и связующий', gift:'видеть варианты, соединять людей и смыслы', shadow:'рассеивание, суета, жизнь в бесконечных мыслях', practice:'сведи мысль к одной ясной фразе и одному разговору' },
+  { archetype:'хранитель памяти и дома', gift:'чувствовать настроение, защищать близкое, помнить корни', shadow:'обида, закрытость, жизнь прошлым', practice:'отдели заботу от контроля и назови свою потребность' },
+  { archetype:'сердце огня', gift:'проявляться, вдохновлять, вести через щедрость', shadow:'гордость, драматизация, зависимость от признания', practice:'покажи результат без просьбы о восхищении' },
+  { archetype:'мастер порядка', gift:'видеть детали, улучшать систему, служить делу', shadow:'критика, тревожный контроль, вечная недоделанность', practice:'исправь одну деталь и остановись вовремя' },
+  { archetype:'держатель равновесия', gift:'видеть обе стороны, договариваться, создавать лад', shadow:'нерешительность, зависимость от оценки, избегание конфликта', practice:'выбери позицию и скажи её спокойно' },
+  { archetype:'страж глубины', gift:'видеть скрытое, выдерживать кризис, трансформировать боль', shadow:'подозрительность, контроль, разрушительная интенсивность', practice:'назови правду без давления и не усиливай драму' },
+  { archetype:'искатель смысла', gift:'видеть горизонт, учиться, расширять путь', shadow:'поучение, бегство от деталей, обещания больше дела', practice:'преврати большую идею в один проверяемый шаг' },
+  { archetype:'строитель вершины', gift:'выдержка, структура, ответственность, долгий результат', shadow:'жёсткость к себе, холодность, страх слабости', practice:'сделай маленький шаг к большой цели и признай уже пройденное' },
+  { archetype:'проводник будущего', gift:'видеть новые системы, дружить с необычным, обновлять правила', shadow:'отстранённость, бунт ради бунта, холодная теория', practice:'проверь идею на пользе для живого человека' },
+  { archetype:'слушатель тонкого', gift:'сострадание, интуиция, воображение, связь с глубиной', shadow:'растворение, уход от границ, спасательство', practice:'оставь сердце открытым, но поставь один берег' }
+];
+const numberProfiles = {
+  1:{ meaning:'инициатива, самостоятельность, право начать', practice:'выбери одно действие, где ты первый' },
+  2:{ meaning:'чувствительность, союз, дипломатия', practice:'сохрани контакт, но назови свою позицию' },
+  3:{ meaning:'выражение, творчество, слово, лёгкость', practice:'оформи мысль в текст, разговор или маленький публичный жест' },
+  4:{ meaning:'структура, труд, порядок, надёжность', practice:'собери план из трёх простых шагов' },
+  5:{ meaning:'свобода, движение, опыт, перемены', practice:'дай себе движение, но зафиксируй границу' },
+  6:{ meaning:'забота, ответственность, красота отношений', practice:'помоги без самопредательства' },
+  7:{ meaning:'анализ, глубина, поиск истины, уединение', practice:'проверь одну гипотезу фактом' },
+  8:{ meaning:'сила, управление, деньги, результат', practice:'измерь результат и выбери честный способ влияния' },
+  9:{ meaning:'завершение, мудрость, служение большему', practice:'закрой один цикл и оставь только своё' },
+  11:{ meaning:'интуитивный проводник, вдохновение, тонкий сигнал', practice:'заземли озарение одним проверяемым действием' },
+  22:{ meaning:'мастер-строитель, крупная форма, воплощение идеи', practice:'разбей большую систему на первый кирпич' },
+  33:{ meaning:'служение через сердце, обучение, исцеляющее присутствие', practice:'дай тепло, сохрани границу' }
+};
 
 function getZodiac(month, day) {
   const cutoffs = [
@@ -746,6 +774,14 @@ function personalityNum(name) {
 function birthdayNum(day) { return reduceNum(day); }
 
 function maturityNum(lifePath, destiny) { return reduceNum(lifePath + destiny); }
+
+function numberMeaning(n) {
+  return (numberProfiles[n] || numberProfiles[reduceNum(n)] || numberProfiles[1]).meaning;
+}
+
+function numberPractice(n) {
+  return (numberProfiles[n] || numberProfiles[reduceNum(n)] || numberProfiles[1]).practice;
+}
 
 function personalYear(bDay, bMonth) {
   var y = new Date().getFullYear();
@@ -827,6 +863,42 @@ function birthRune(dateStr) {
 function dailyRune(date) {
   var seed = date.getFullYear() * 10000 + (date.getMonth()+1) * 100 + date.getDate();
   return runeFromSeed(seed);
+}
+
+function nameRune(name) {
+  var seed = String(name || '').split('').reduce(function(sum, ch) {
+    return sum + ch.charCodeAt(0);
+  }, 0);
+  return runeFromSeed(seed);
+}
+
+function resultRune(dateStr, name) {
+  var dateSeed = String(dateStr || '').replace(/-/g,'').split('').reduce(function(sum, ch) {
+    return sum + (parseInt(ch, 10) || 0);
+  }, 0);
+  var nameSeed = String(name || '').split('').reduce(function(sum, ch) {
+    return sum + ch.charCodeAt(0);
+  }, 0);
+  return runeFromSeed(dateSeed + nameSeed + lifePathNumber(dateStr) + destinyNumber(name || ''));
+}
+
+function buildRuneCode() {
+  var bv = userBirthValue || document.getElementById('birthInput')?.value || '';
+  var br = birthRune(bv);
+  var nr = nameRune(userName);
+  var rr = resultRune(bv, userName);
+  var dr = dailyRune(new Date());
+
+  return {
+    destiny: br.symbol + ' ' + br.name + ' — ' + br.meaning + '. Совет: ' + br.advice,
+    personality: nr.symbol + ' ' + nr.name + ' — ' + nr.meaning + '. Совет: ' + nr.advice,
+    result: rr.symbol + ' ' + rr.name + ' — ' + rr.meaning + '. Совет: ' + rr.advice,
+    today: dr.symbol + ' ' + dr.name + ' — ' + dr.meaning + '. Совет: ' + dr.advice
+  };
+}
+
+function isRuneCodeRequest(text) {
+  return /руническ(ий|ого|ому|им|ом)?\s+код|рунн(ый|ого|ому|ым|ом)?\s+код|р?унокод/i.test(text || '');
 }
 
 const chakras = [
@@ -1715,6 +1787,7 @@ function buildProfile(zi, bv) {
   var bc = birthChakra(bv);
   var ac = activeChakra(bv, bd, bm);
   var totem = getTotemAnimal(bv, zi);
+  var signProfile = signProfiles[zi];
 
   var pc = document.getElementById('profileContent');
   pc.innerHTML =
@@ -1731,6 +1804,10 @@ function buildProfile(zi, bv) {
       '<div class="stat-row"><span class="stat-label">Управитель</span><span class="stat-value">' + planets[zi] + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Качество</span><span class="stat-value">' + qualities[zi] + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Энергия сейчас</span><span class="stat-value ' + (sp.status === 'Сезон силы' ? 'good' : sp.status === 'Противофаза' ? 'warn' : '') + '">' + sp.status + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Архетип</span><span class="stat-value accent">' + signProfile.archetype + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Дар знака</span><span class="stat-value good">' + signProfile.gift + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Тень знака</span><span class="stat-value warn">' + signProfile.shadow + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Практика</span><span class="stat-value good">' + signProfile.practice + '</span></div>' +
     '</div>' +
 
     '<div class="profile-card">' +
@@ -1742,11 +1819,13 @@ function buildProfile(zi, bv) {
     '<div class="profile-card">' +
       '<div class="card-label">Нумерология</div>' +
       '<div class="stat-row"><span class="stat-label">Число жизненного пути</span><span class="stat-value accent">' + lp + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Смысл пути</span><span class="stat-value">' + numberMeaning(lp) + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Число судьбы (имя)</span><span class="stat-value accent">' + dn + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Число души</span><span class="stat-value accent">' + sn + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Число личности</span><span class="stat-value accent">' + pn + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Число дня рождения</span><span class="stat-value accent">' + bn + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Число зрелости</span><span class="stat-value accent">' + mn + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Практика числа</span><span class="stat-value good">' + numberPractice(lp) + '</span></div>' +
     '</div>' +
 
     '<div class="profile-card">' +
@@ -2091,8 +2170,14 @@ async function askOracle(message, options) {
     ctx.events = eventsForApi;
     ctx.message = message;
     ctx.requestMode = options && options.requestMode ? options.requestMode : (oracleMode === 'tarot' ? 'tarot_spread' : 'oracle');
+    if (ctx.requestMode === 'oracle' && isRuneCodeRequest(message)) {
+      ctx.requestMode = 'rune_code';
+    }
     if (ctx.requestMode === 'tarot_spread') {
       ctx.tarotSpread = buildTarotSpread(message);
+    }
+    if (ctx.requestMode === 'rune_code') {
+      ctx.runeCode = buildRuneCode();
     }
     if (options && options.matrixFocus) {
       ctx.matrixFocus = options.matrixFocus;
@@ -2109,6 +2194,7 @@ async function askOracle(message, options) {
 
     if (!response.ok) throw new Error('API error');
     var data = await response.json();
+    useAI = true;
     return data.reply;
   } catch(err) {
     useAI = false;
@@ -2230,8 +2316,11 @@ async function sendMessage() {
   if (typing.parentNode) chat.removeChild(typing);
 
   var evtWord = events.length === 1 ? 'событие' : (events.length < 5 ? 'события' : 'событий');
+  var modeText = isRuneCodeRequest(text)
+    ? 'AI-оракул • рунический код + '
+    : (oracleMode === 'tarot' ? 'AI-оракул • расклад таро + ' : 'AI-оракул • карта + ');
   var metaText = useAI
-    ? (oracleMode === 'tarot' ? 'AI-оракул • расклад таро + ' : 'AI-оракул • карта + ') + events.length + ' ' + evtWord
+    ? modeText + events.length + ' ' + evtWord
     : 'На основе карты + ' + events.length + ' ' + evtWord;
   addOracleMsg(resp, metaText);
 
