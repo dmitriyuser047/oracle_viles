@@ -547,14 +547,17 @@ app.post('/api/oracle', async (req, res) => {
     if (mentalHealthSignals.includes('Уровень внимания')) parts.push(`\n=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
     const systemText = parts.join('');
 
+    const userMessage = `Вопрос от ${b.userName}: ${b.message}`;
+
     const groqBody = JSON.stringify({
       model: 'qwen/qwen3.8-27b',
       messages: [
         { role: 'system', content: systemText },
-        { role: 'user', content: b.message }
+        { role: 'user', content: userMessage }
       ],
-      temperature: 0.65,
-      max_tokens: getMaxTokensForMode(b.requestMode)
+      temperature: 0.7,
+      max_tokens: getMaxTokensForMode(b.requestMode),
+      chat_template_kwargs: { enable_thinking: false }
     });
 
     let data = null;
@@ -601,7 +604,9 @@ app.post('/api/oracle', async (req, res) => {
     if (!data) {
       return res.status(500).json({ error: 'AI не ответил после 3 попыток' });
     }
-    const rawReply = data.choices?.[0]?.message?.content || 'Звёзды молчат... Попробуй позже.';
+    let rawReply = data.choices?.[0]?.message?.content || 'Звёзды молчат... Попробуй позже.';
+    rawReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    if (!rawReply) rawReply = 'Звёзды молчат... Попробуй позже.';
     const reply = polishReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b)), b));
     console.log('Groq reply:', reply);
 
