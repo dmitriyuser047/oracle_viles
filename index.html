@@ -353,7 +353,7 @@
   .add-entry-btn:active { transform: scale(0.9); }
 
   /* Profile */
-  .profile-content { flex: 1; padding: 0 16px; overflow-y: auto; padding-bottom: 20px; }
+  .profile-content { flex: 1; padding: 0 16px 96px; overflow-y: auto; }
   .profile-header {
     text-align: center; margin-bottom: 20px;
   }
@@ -364,8 +364,19 @@
     display: flex; align-items: center; justify-content: center;
     margin: 0 auto 12px; font-size: 28px;
   }
-  .profile-name { font-size: 18px; font-weight: 600; color: #e8e4f0; }
-  .profile-sign { font-size: 13px; color: #7b6baa; margin-top: 2px; }
+  .profile-name {
+    max-width: 100%;
+    padding: 0 8px;
+    font-size: 18px; font-weight: 600; color: #e8e4f0;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .profile-sign {
+    padding: 0 8px;
+    font-size: 13px; color: #7b6baa; margin-top: 2px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
 
   .profile-card {
     background: linear-gradient(145deg, rgba(30,20,70,0.9), rgba(18,12,45,0.9));
@@ -378,7 +389,8 @@
     text-transform: uppercase; margin-bottom: 14px;
   }
   .stat-row {
-    display: flex; justify-content: space-between; align-items: center;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px;
+    align-items: start;
     padding: 10px 0; border-bottom: 0.5px solid rgba(100,70,180,0.06);
     cursor: pointer; border-radius: 8px;
     transition: background 0.2s, padding-left 0.2s, padding-right 0.2s;
@@ -389,8 +401,22 @@
   }
   .stat-row:active { background: rgba(120,80,220,0.14); }
   .stat-row:last-child { border: none; }
-  .stat-label { font-size: 13.5px; color: #8a7aaa; }
-  .stat-value { font-size: 13.5px; color: #ccc4e4; font-weight: 500; }
+  .stat-row-long { grid-template-columns: 1fr; }
+  .stat-label { min-width: 0; font-size: 13.5px; color: #8a7aaa; line-height: 1.35; }
+  .stat-value {
+    max-width: 190px;
+    min-width: 0;
+    justify-self: end;
+    text-align: right;
+    font-size: 13.5px; color: #ccc4e4; font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .stat-row-long .stat-value {
+    max-width: 100%;
+    justify-self: start;
+    text-align: left;
+  }
   .stat-value.warn { color: #e8a888; }
   .stat-value.good { color: #88d8b8; }
   .stat-value.accent { color: #c4b0f0; }
@@ -1811,6 +1837,10 @@ function bindProfileRows() {
   document.querySelectorAll('#profileContent .profile-card').forEach(function(card) {
     var section = card.querySelector('.card-label')?.textContent.trim() || 'Профиль';
     card.querySelectorAll('.stat-row').forEach(function(row) {
+      var valueText = row.querySelector('.stat-value')?.textContent.trim() || '';
+      if (valueText.length > 28 || valueText.indexOf(',') !== -1) {
+        row.classList.add('stat-row-long');
+      }
       row.setAttribute('role', 'button');
       row.setAttribute('tabindex', '0');
       row.title = 'Получить разбор';
