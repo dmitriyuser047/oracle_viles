@@ -901,6 +901,10 @@ function isRuneCodeRequest(text) {
   return /руническ(ий|ого|ому|им|ом)?\s+код|рунн(ый|ого|ому|ым|ом)?\s+код|р?унокод/i.test(text || '');
 }
 
+function isMoonRequest(text) {
+  return /лун[а-яё]*|новолун|полнолун|лунн(ый|ого|ому|ым|ом)?\s+(день|цикл|календар|ритм|фаз)/i.test(text || '');
+}
+
 const chakras = [
   {
     name:'Муладхара',
@@ -1156,43 +1160,6 @@ const slavicArchetypes = [
   { name:'Даждьбог', sphere:'солнце, дар, проявление, щедрость', light:'вынести силу в мир', shadow:'доказывать ценность через блеск', practice:'покажи один результат без оправданий' }
 ];
 
-const lunarDayMeanings = [
-  'посев намерения и тихий выбор направления',
-  'накопление ресурса и осторожность в желаниях',
-  'воля, движение и проверка силы',
-  'слово, звук и ответственность за сказанное',
-  'усвоение опыта и бережность к телу',
-  'дыхание, знаки воздуха и тонкое наблюдение',
-  'молитва, обещание и сила произнесённого',
-  'перерождение, очищение и смена кожи',
-  'туман, искушение и проверка иллюзий',
-  'род, дом и возвращение к источнику',
-  'сила, энергия и осторожность с напором',
-  'сердце, милость и исцеление через мягкость',
-  'колесо повторов и возвращение старой темы',
-  'призыв, действие и точный рывок',
-  'искушение желаниями и проверка зависимости',
-  'равновесие, тишина и внутренняя чистота',
-  'радость, речь и открытое сердце',
-  'зеркало, отражение и распознавание самообмана',
-  'сеть связей, ловушки и освобождение от привязок',
-  'гордость, достоинство и честная сила',
-  'движение, дорога и поиск верного пути',
-  'мудрость, знание и передача опыта',
-  'защита, границы и хранение своего круга',
-  'пробуждение силы и бережность к импульсам',
-  'созерцание, одиночество и глубинное видение',
-  'жертва, долг и освобождение от лишнего',
-  'интуиция, вода и возвращение к живому чувству',
-  'завершение цикла и подведение итогов',
-  'тишина перед новым началом и очищение поля',
-  'тёмная луна, покой и отказ от суеты'
-];
-
-function getLunarDayMeaning(day) {
-  return lunarDayMeanings[(Math.max(1, day) - 1) % lunarDayMeanings.length];
-}
-
 function getAlchemyStage(message) {
   var text = oracleText(message);
   var pd = userBirth ? personalDay(userBirth.getDate(), userBirth.getMonth() + 1) : 1;
@@ -1243,7 +1210,6 @@ function getSlavicArchetype(message) {
 }
 
 function buildOracleEngine(message, dateStr, bDay, bMonth) {
-  var moon = getMoonPhase(new Date());
   var stage = getAlchemyStage(message);
   var balance = getElementBalance(message);
   var archetype = getSlavicArchetype(message);
@@ -1254,7 +1220,6 @@ function buildOracleEngine(message, dateStr, bDay, bMonth) {
     alchemy: insight('Алхимия', stage.name, stage.sphere, stage.light, stage.shadow, stage.practice),
     elements: insight('Баланс стихий', balance.dominant + ' / нужна ' + balance.missing, 'энергетический перекос ситуации', balance.meaning, 'перекос без недостающей стихии', balance.practice),
     slavic: insight('Славянский архетип', archetype.name, archetype.sphere, archetype.light, archetype.shadow, archetype.practice),
-    lunarDay: insight('Лунный день', moon.day + '-й лунный день', 'ритм дня', getLunarDayMeaning(moon.day), 'спешка против ритма дня', 'учти лунный ритм перед первым шагом'),
     practice: insight('Практический ключ', kb.name + ' + ' + dr.name + ' + ' + ac.name, 'воплощение ответа', kb.practice + '; ' + dr.advice, ac.shadow, ac.practice)
   };
 }
@@ -1325,7 +1290,7 @@ var tarotMajor = [
   {name:'Жрица',meaning:'интуиция, тайны, внутренний голос'},
   {name:'Императрица',meaning:'изобилие, творчество, забота'},
   {name:'Император',meaning:'структура, власть, стабильность'},
-  {name:'Иерофант',meaning:'традиции, мудрость, наставничество'},
+  {name:'Иерофант',meaning:'мудрость, наставничество, внутренний закон'},
   {name:'Влюблённые',meaning:'выбор, союз, гармония'},
   {name:'Колесница',meaning:'воля, победа, движение вперёд'},
   {name:'Сила',meaning:'внутренняя сила, терпение, мужество'},
@@ -1350,7 +1315,7 @@ var waiteTarotDeck = [
   {name:'Верховная Жрица', suit:'Старшие арканы', meaning:'интуиция, тайна, внутреннее знание'},
   {name:'Императрица', suit:'Старшие арканы', meaning:'рост, плодородие, забота, творчество'},
   {name:'Император', suit:'Старшие арканы', meaning:'структура, власть, порядок, границы'},
-  {name:'Иерофант', suit:'Старшие арканы', meaning:'традиция, наставничество, духовный закон'},
+  {name:'Иерофант', suit:'Старшие арканы', meaning:'наставничество, вера, духовный закон'},
   {name:'Влюблённые', suit:'Старшие арканы', meaning:'выбор, союз, согласие сердца'},
   {name:'Колесница', suit:'Старшие арканы', meaning:'движение, воля, победа через управление'},
   {name:'Сила', suit:'Старшие арканы', meaning:'мягкая власть, выдержка, укрощение страсти'},
@@ -1512,7 +1477,7 @@ var arcanEnergies = [
   'Жрица — интуиция, тайное знание',
   'Императрица — творчество, изобилие, женственность',
   'Император — порядок, власть, стабильность',
-  'Иерофант — традиции, учительство, духовность',
+  'Иерофант — наставничество, учительство, духовность',
   'Влюблённые — выбор, любовь, испытание',
   'Колесница — движение, победа, амбиции',
   'Справедливость — баланс, закон, карма',
@@ -1654,7 +1619,6 @@ function buildMatrixSVG(mx) {
 function buildDailyForecast() {
   var bd = userBirth.getDate();
   var bm = userBirth.getMonth() + 1;
-  var moon = getMoonPhase(new Date());
   var dt = dailyTarot(new Date());
   var pd = personalDay(bd, bm);
   var de = getDayElement(new Date());
@@ -1687,7 +1651,6 @@ function buildDailyForecast() {
       '<div class="pattern-icon"><div class="pattern-icon-inner"></div></div>' +
       'Прогноз на сегодня • ' + dateStr +
     '</div>' +
-    '<div class="forecast-row"><span class="forecast-key">' + moon.icon + ' Луна</span><span class="forecast-val">' + moon.name + ', ' + moon.day + '-й день</span></div>' +
     '<div class="forecast-row"><span class="forecast-key">Карта дня</span><span class="forecast-val">' + dt.name + '</span></div>' +
     '<div class="forecast-row"><span class="forecast-key">Персональный день</span><span class="forecast-val">' + pd + '</span></div>' +
     '<div class="forecast-row"><span class="forecast-key">Управитель</span><span class="forecast-val">' + de.ruler + '</span></div>' +
@@ -1774,7 +1737,6 @@ function buildProfile(zi, bv) {
   var pm = personalMonth(bd, bm);
   var pd = personalDay(bd, bm);
   var cz = getChineseZodiac(userBirth.getFullYear());
-  var moon = getMoonPhase(new Date());
   var bt = birthTarot(lp);
   var yt = yearTarot(bd, bm);
   var dt = dailyTarot(new Date());
@@ -1894,13 +1856,6 @@ function buildProfile(zi, bv) {
       '<div class="stat-row"><span class="stat-label">Зона денег (' + mx.money.num + ')</span><span class="stat-value accent">' + mx.money.desc.split(' — ')[0] + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Зона отношений (' + mx.relations.num + ')</span><span class="stat-value accent">' + mx.relations.desc.split(' — ')[0] + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Предназначение (' + mx.missionGeneral.num + ')</span><span class="stat-value good">' + mx.missionGeneral.desc.split(' — ')[0] + '</span></div>' +
-    '</div>' +
-
-    '<div class="profile-card">' +
-      '<div class="card-label">Луна сегодня</div>' +
-      '<div class="stat-row"><span class="stat-label">Фаза</span><span class="stat-value">' + moon.icon + ' ' + moon.name + '</span></div>' +
-      '<div class="stat-row"><span class="stat-label">Лунный день</span><span class="stat-value">' + moon.day + '</span></div>' +
-      '<div class="stat-row"><span class="stat-label">Управитель дня</span><span class="stat-value">' + de.ruler + ' (' + de.day + ')</span></div>' +
     '</div>' +
 
     '<div class="profile-card">' +
@@ -2096,7 +2051,6 @@ function buildEsotericContext(message) {
   var bd = userBirth.getDate();
   var bm = userBirth.getMonth() + 1;
   var lp = lifePathNumber(bv);
-  var moon = getMoonPhase(new Date());
   var cz = getChineseZodiac(userBirth.getFullYear());
   var bt = birthTarot(lp);
   var yt = yearTarot(bd, bm);
@@ -2139,7 +2093,6 @@ function buildEsotericContext(message) {
     birthChakra: bc.name + ' — ' + bc.area + '. Тень: ' + bc.shadow + '. Практика: ' + bc.practice,
     activeChakra: ac.name + ' — ' + ac.area + '. Тень: ' + ac.shadow + '. Практика: ' + ac.practice,
     oracleInsights: formatOracleInsights(engine),
-    moonPhase: moon.name + ', ' + moon.day + '-й лунный день',
     dayRuler: de.ruler + ' (' + de.day + ')',
     today: new Date().toLocaleDateString('ru-RU'),
     matrix: (function() {
@@ -2171,6 +2124,15 @@ async function askOracle(message, options) {
     ctx.requestMode = options && options.requestMode ? options.requestMode : (oracleMode === 'tarot' ? 'tarot_spread' : 'oracle');
     if (ctx.requestMode === 'oracle' && isRuneCodeRequest(message)) {
       ctx.requestMode = 'rune_code';
+    }
+    if (ctx.requestMode === 'oracle' && isMoonRequest(message)) {
+      ctx.requestMode = 'moon';
+    }
+    if (ctx.requestMode === 'moon') {
+      var moon = getMoonPhase(new Date());
+      var de = getDayElement(new Date());
+      ctx.moonPhase = moon.name + ', ' + moon.day + '-й лунный день';
+      ctx.dayRuler = de.ruler + ' (' + de.day + ')';
     }
     if (ctx.requestMode === 'tarot_spread') {
       ctx.tarotSpread = buildTarotSpread(message);
@@ -2328,7 +2290,9 @@ async function sendMessage() {
   var evtWord = events.length === 1 ? 'событие' : (events.length < 5 ? 'события' : 'событий');
   var modeText = isRuneCodeRequest(text)
     ? 'AI-оракул • рунический код + '
-    : (oracleMode === 'tarot' ? 'AI-оракул • расклад таро + ' : 'AI-оракул • карта + ');
+    : (isMoonRequest(text)
+      ? 'AI-оракул • луна + '
+      : (oracleMode === 'tarot' ? 'AI-оракул • расклад таро + ' : 'AI-оракул • карта + '));
   var metaText = useAI
     ? modeText + events.length + ' ' + evtWord
     : 'На основе карты + ' + events.length + ' ' + evtWord;
@@ -2357,13 +2321,12 @@ function updateDiary() {
   var months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
   var entriesHtml = events.map(function(e) {
     var d = e.date;
-    var moon = getMoonPhase(d);
     var de = getDayElement(d);
     var dt = dailyTarot(d);
     return '<div class="diary-entry">' +
       '<div class="date">' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ', ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0') + '</div>' +
       '<div class="text">' + escapeHtml(e.text) + '</div>' +
-      '<div class="transit">' + moon.icon + ' ' + moon.name + ', ' + moon.day + '-й л.д. • ' + de.ruler + ' • ' + dt.name + '</div>' +
+      '<div class="transit">' + de.ruler + ' • ' + dt.name + '</div>' +
     '</div>';
   }).reverse().join('');
   dl.innerHTML = buildDiaryPatterns() +
