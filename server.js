@@ -568,8 +568,10 @@ app.post('/api/oracle', async (req, res) => {
     const tRune = translit(b.dailyRune);
     const userMessage = `My name is ${tName}. Zodiac: ${tZodiac}. Card of the day: ${tTarot}. Rune of the day: ${tRune}. My question: ${b.message}`;
 
-    console.log('DEBUG systemText (first 300):', systemText.substring(0, 300));
     console.log('DEBUG userMessage:', userMessage);
+    console.log('DEBUG userMessage hex:', Buffer.from(userMessage).toString('hex').substring(0, 200));
+    console.log('DEBUG systemText length:', systemText.length, 'chars');
+    console.log('DEBUG groq tokens est:', Math.ceil((systemText.length + userMessage.length) / 3));
 
     const groqBody = JSON.stringify({
       model: 'qwen/qwen3.8-27b',
