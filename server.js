@@ -47,19 +47,22 @@ const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский о
 - Выбери 1 главный символ из КАРТЫ. Поддерживающий слой используй только для смысла и тона, не называй его отдельной системой без прямого вопроса.
 - Не смешивай каббалистику и руны. Не называй Луну, если человек прямо не спросил про Луну, лунный день, фазу, новолуние или полнолуние.
 - Психологию используй скрыто: замечай страх, контроль, избегание, повтор роли, потребность в опоре, но не называй теории.
+- Не отвечай односложно. Даже на простой вопрос дай ощущение анализа: что видно в ситуации, почему это могло сложиться, где ресурс человека, где ловушка и какой следующий шаг.
+- Не ограничивайся советом. Сначала покажи скрытый узор ситуации, затем уже дай действие.
 - Не ставь диагнозы и не называй человека больным. Если нет прямой угрозы вреда себе или другим, отвечай мягко: "не вижу подтверждения этому в карте и хронике", "проверь факты", "не принимай решение из страха".
 - Не спорь с верой человека и не разоблачай мистику. Возвращай выбор, а не приговор.
 - Только русский, кириллица, без эмодзи. Обращайся по имени на "ты".
 
 /no_think
-Формат: 8-12 предложений.
+Формат обычного ответа: 10-14 предложений, 2-4 коротких абзаца.
 1. Имя + один главный символ из КАРТЫ.
-2. Смысл ситуации через символ и скрытое психологическое понимание.
-3. Сила человека.
-4. Ловушка или риск.
-5. Чего не делать.
-6. Конкретный совет с действием и сроком.
-7. Фраза силы или микро-обряд.`;
+2. Что происходит в ситуации через этот символ.
+3. Какой скрытый сценарий или внутреннее напряжение может стоять за вопросом.
+4. Сила человека и как её использовать.
+5. Тень, риск или самообман.
+6. Чего не делать.
+7. Конкретный совет с действием и сроком.
+8. Фраза силы или микро-обряд.`;
 
 function polishReply(text) {
   return String(text || '')
@@ -218,6 +221,15 @@ function cleanUnrequestedLayerReply(text, b) {
     .join(' ');
 
   return cleaned.length > 250 ? cleaned : reply;
+}
+
+function ensureNameOpening(text, b) {
+  var reply = String(text || '').trim();
+  var name = String(b?.userName || '').trim();
+  if (!name || reply.toLowerCase().startsWith(name.toLowerCase())) return reply;
+
+  var lowered = reply.charAt(0).toLowerCase() + reply.slice(1);
+  return `${name}, ${lowered}`;
 }
 
 function hasImmediateDanger(message, events) {
@@ -548,7 +560,7 @@ function selectMonosovKnowledge(b) {
   }
 
   let text = blocks.filter(Boolean).join('\n\n');
-  if (text.length > 800) text = text.substring(0, 800);
+  if (text.length > 1400) text = text.substring(0, 1400);
   return text || '';
 }
 
@@ -624,8 +636,8 @@ app.post('/api/oracle', async (req, res) => {
       `Знак: ${b.zodiac}, стихия: ${b.element}, управитель: ${b.planet}`,
       `Числа: путь=${b.lifePath}, судьба=${b.destiny}, душа=${b.soul}`,
       `Циклы: год=${b.personalYear}, месяц=${b.personalMonth}, день=${b.personalDay}`,
-      `Таро: рождения=${b.birthTarot}, дня=${b.dailyTarot}`,
-      `Руны: рождения=${b.birthRune}, дня=${b.dailyRune}`,
+      `Главная карта дня: ${b.dailyTarot}`,
+      `Руна дня: ${b.dailyRune}`,
       `Тотем: ${b.totem || '—'}`,
       ]).join('\n');
     })();
@@ -711,7 +723,7 @@ app.post('/api/oracle', async (req, res) => {
       rawReply = rawReply.replace(/вернись\s+с\s+(точными\s+)?данными[^.]*\./gi, '');
       rawReply = rawReply.replace(/пустот[а-яё]*\s+запроса[^.]*\./gi, '');
     }
-    const reply = polishReply(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b));
+    const reply = polishReply(ensureNameOpening(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b));
     console.log('Groq reply:', reply);
 
     res.json({ reply });
