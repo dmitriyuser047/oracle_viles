@@ -57,6 +57,19 @@ const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский о
 5. Конкретный совет с действием и сроком.
 6. Фраза силы или микро-обряд.`;
 
+const TRANSLIT_MAP = {
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y',
+  'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+  'х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+  'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ё':'Yo','Ж':'Zh','З':'Z','И':'I','Й':'Y',
+  'К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F',
+  'Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh','Щ':'Sch','Ъ':'','Ы':'Y','Ь':'','Э':'E','Ю':'Yu','Я':'Ya'
+};
+
+function translit(text) {
+  return String(text || '').split('').map(c => TRANSLIT_MAP[c] || c).join('');
+}
+
 function polishReply(text) {
   return String(text || '')
     .replace(/[一-鿿㐀-䶿\u{20000}-\u{2a6df}]/gu, '')
@@ -483,18 +496,20 @@ app.post('/api/oracle', async (req, res) => {
           ? 'позиция профиля'
           : (b.requestMode === 'rune_code' ? 'рунический код' : 'обычный оракул')));
 
+    const t = (v) => translit(v || '');
+
     const baseUserData = [
-      `Имя: ${b.userName}`,
-      `Дата рождения: ${b.birthDate}`,
-      `Сегодня: ${b.today}`,
-      `Режим запроса: ${requestMode}`
+      `Name: ${t(b.userName)}`,
+      `Birth date: ${b.birthDate}`,
+      `Today: ${b.today}`,
+      `Mode: ${requestMode}`
     ];
 
     const userData = (function() {
       if (b.requestMode === 'profile_item') {
         return baseUserData.concat([
           ``,
-          `--- ФОКУС ПРОФИЛЯ ---`,
+          `--- FOCUS ---`,
           `${formatProfileFocus(b.profileFocus)}`
         ]).join('\n');
       }
@@ -502,7 +517,7 @@ app.post('/api/oracle', async (req, res) => {
       if (b.requestMode === 'matrix_arcana') {
         return baseUserData.concat([
           ``,
-          `--- ФОКУС МАТРИЦЫ ---`,
+          `--- MATRIX FOCUS ---`,
           `${formatMatrixFocus(b.matrixFocus)}`
         ]).join('\n');
       }
@@ -510,7 +525,7 @@ app.post('/api/oracle', async (req, res) => {
       if (b.requestMode === 'tarot_spread') {
         return baseUserData.concat([
           ``,
-          `--- РАСКЛАД ТАРО ---`,
+          `--- TAROT SPREAD ---`,
           `${formatTarotSpread(b.tarotSpread)}`
         ]).join('\n');
       }
@@ -518,19 +533,19 @@ app.post('/api/oracle', async (req, res) => {
       if (b.requestMode === 'rune_code') {
         return baseUserData.concat([
           ``,
-          `--- РУНИЧЕСКИЙ КОД ---`,
+          `--- RUNE CODE ---`,
           `${formatRuneCode(b.runeCode)}`
         ]).join('\n');
       }
 
       return baseUserData.concat([
       ``,
-      `Знак: ${b.zodiac}, стихия: ${b.element}, управитель: ${b.planet}`,
-      `Числа: путь=${b.lifePath}, судьба=${b.destiny}, душа=${b.soul}`,
-      `Циклы: год=${b.personalYear}, месяц=${b.personalMonth}, день=${b.personalDay}`,
-      `Таро: рождения=${b.birthTarot}, дня=${b.dailyTarot}`,
-      `Руны: рождения=${b.birthRune}, дня=${b.dailyRune}`,
-      `Тотем: ${b.totem || '—'}`,
+      `Zodiac: ${t(b.zodiac)}, element: ${t(b.element)}, ruler: ${t(b.planet)}`,
+      `Numbers: path=${b.lifePath}, destiny=${b.destiny}, soul=${b.soul}`,
+      `Cycles: year=${b.personalYear}, month=${b.personalMonth}, day=${b.personalDay}`,
+      `Tarot: birth=${t(b.birthTarot)}, today=${t(b.dailyTarot)}`,
+      `Runes: birth=${t(b.birthRune)}, today=${t(b.dailyRune)}`,
+      `Totem: ${t(b.totem) || '—'}`,
       ]).join('\n');
     })();
 
@@ -547,7 +562,11 @@ app.post('/api/oracle', async (req, res) => {
     if (mentalHealthSignals.includes('Уровень внимания')) parts.push(`\n=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
     const systemText = parts.join('');
 
-    const userMessage = `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
+    const tName = translit(b.userName);
+    const tZodiac = translit(b.zodiac);
+    const tTarot = translit(b.dailyTarot);
+    const tRune = translit(b.dailyRune);
+    const userMessage = `My name is ${tName}. Zodiac: ${tZodiac}. Card of the day: ${tTarot}. Rune of the day: ${tRune}. My question: ${b.message}`;
 
     console.log('DEBUG systemText (first 300):', systemText.substring(0, 300));
     console.log('DEBUG userMessage:', userMessage);
@@ -609,6 +628,16 @@ app.post('/api/oracle', async (req, res) => {
     let rawReply = data.choices?.[0]?.message?.content || 'Звёзды молчат... Попробуй позже.';
     rawReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     if (!rawReply) rawReply = 'Звёзды молчат... Попробуй позже.';
+    const translitPairs = [
+      [b.userName], [b.zodiac], [b.dailyTarot], [b.dailyRune],
+      [b.birthTarot], [b.birthRune], [b.element], [b.planet], [b.totem]
+    ].filter(p => p[0]);
+    for (const [orig] of translitPairs) {
+      const tVal = translit(orig);
+      if (tVal && tVal !== orig) {
+        rawReply = rawReply.replace(new RegExp(tVal, 'gi'), orig);
+      }
+    }
     if (b.userName) {
       rawReply = rawReply.replace(/имя\s+тво[её]\s+скрыто[^.]*\./gi, `${b.userName}, Велес видит тебя.`);
       rawReply = rawReply.replace(/имя\s+(неизвестно|не\s+названо|не\s+указано|скрыто)[^.]*\./gi, `${b.userName}, Велес слышит тебя.`);
