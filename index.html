@@ -160,12 +160,13 @@
     background: linear-gradient(transparent 0%, #08080f 32%);
   }
   .oracle-modes {
-    padding: 12px 16px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 12px 16px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
   }
   .mode-btn {
     height: 36px; border-radius: 18px; border: 0.5px solid rgba(100,70,180,0.16);
     background: rgba(255,255,255,0.035); color: #80759f; font-size: 13px;
     font-family: inherit; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px;
   }
   .mode-btn.active {
     color: #e7ddff; border-color: rgba(150,115,230,0.38);
@@ -568,6 +569,8 @@
       <div class="oracle-modes">
         <button class="mode-btn active" id="modeOracle" onclick="setOracleMode('oracle')">Оракул</button>
         <button class="mode-btn" id="modeTarot" onclick="setOracleMode('tarot')">Расклад таро</button>
+        <button class="mode-btn" id="modeDialogue" onclick="setOracleMode('dialogue')">Переписка</button>
+        <button class="mode-btn" id="modeDialogueEnergy" onclick="setOracleMode('dialogue_energy')">Энергии диалога</button>
       </div>
       <div class="input-bar">
         <input type="text" id="msgInput" placeholder="Расскажи оракулу, что произошло...">
@@ -2033,16 +2036,25 @@ const fallbackResponses = [
 ];
 
 function setOracleMode(mode) {
-  oracleMode = mode === 'tarot' ? 'tarot' : 'oracle';
-  var oracleBtn = document.getElementById('modeOracle');
-  var tarotBtn = document.getElementById('modeTarot');
+  oracleMode = ['tarot', 'dialogue', 'dialogue_energy'].includes(mode) ? mode : 'oracle';
+  var modeMap = {
+    oracle: document.getElementById('modeOracle'),
+    tarot: document.getElementById('modeTarot'),
+    dialogue: document.getElementById('modeDialogue'),
+    dialogue_energy: document.getElementById('modeDialogueEnergy')
+  };
   var input = document.getElementById('msgInput');
-  if (oracleBtn) oracleBtn.classList.toggle('active', oracleMode === 'oracle');
-  if (tarotBtn) tarotBtn.classList.toggle('active', oracleMode === 'tarot');
+  Object.keys(modeMap).forEach(function(key) {
+    if (modeMap[key]) modeMap[key].classList.toggle('active', oracleMode === key);
+  });
   if (input) {
-    input.placeholder = oracleMode === 'tarot'
-      ? 'Сформулируй вопрос для расклада...'
-      : 'Расскажи оракулу, что произошло...';
+    var placeholders = {
+      oracle: 'Расскажи оракулу, что произошло...',
+      tarot: 'Сформулируй вопрос для расклада...',
+      dialogue: 'Вставь сообщение или диалог для разбора...',
+      dialogue_energy: 'Вставь диалог, чтобы увидеть энергии контакта...'
+    };
+    input.placeholder = placeholders[oracleMode] || placeholders.oracle;
   }
 }
 
@@ -2121,7 +2133,13 @@ async function askOracle(message, options) {
     var ctx = buildEsotericContext(message);
     ctx.events = eventsForApi;
     ctx.message = message;
-    ctx.requestMode = options && options.requestMode ? options.requestMode : (oracleMode === 'tarot' ? 'tarot_spread' : 'oracle');
+    ctx.requestMode = options && options.requestMode
+      ? options.requestMode
+      : (oracleMode === 'tarot'
+        ? 'tarot_spread'
+        : (oracleMode === 'dialogue'
+          ? 'dialogue_analysis'
+          : (oracleMode === 'dialogue_energy' ? 'dialogue_energy' : 'oracle')));
     if (ctx.requestMode === 'oracle' && isRuneCodeRequest(message)) {
       ctx.requestMode = 'rune_code';
     }
@@ -2292,7 +2310,11 @@ async function sendMessage() {
     ? 'AI-оракул • рунический код + '
     : (isMoonRequest(text)
       ? 'AI-оракул • луна + '
-      : (oracleMode === 'tarot' ? 'AI-оракул • расклад таро + ' : 'AI-оракул • карта + '));
+      : (oracleMode === 'tarot'
+        ? 'AI-оракул • расклад таро + '
+        : (oracleMode === 'dialogue'
+          ? 'AI-оракул • переписка + '
+          : (oracleMode === 'dialogue_energy' ? 'AI-оракул • энергии диалога + ' : 'AI-оракул • карта + '))));
   var metaText = useAI
     ? modeText + events.length + ' ' + evtWord
     : 'На основе карты + ' + events.length + ' ' + evtWord;

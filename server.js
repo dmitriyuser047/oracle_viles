@@ -67,6 +67,8 @@ const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский о
 function polishReply(text) {
   return String(text || '')
     .replace(/[一-鿿㐀-䶿\u{20000}-\u{2a6df}]/gu, '')
+    .replace(/[\u{1f300}-\u{1faff}\u{2600}-\u{27bf}]/gu, '')
+    .replace(/дефолтн[а-яё]*/gi, 'обычный')
     .replace(/([.!?])(?=[А-ЯЁ])/g, '$1 ')
     .replace(/([а-яё])([А-ЯЁ])/g, '$1 $2')
     .replace(/\s*(\*\*[^*]+\*\*)\s*/g, '\n\n$1\n')
@@ -129,6 +131,8 @@ function cleanRuneReply(text, b) {
 
 function cleanTotemReply(text, b) {
   var reply = String(text || '');
+  if (b?.requestMode === 'dialogue_energy') return reply;
+
   var totemName = String(b.totem || '').split(/[—-]/)[0].trim();
   var hasTotem = /тотем|животн/i.test(reply)
     || (totemName && reply.toLowerCase().includes(totemName.toLowerCase()));
@@ -217,6 +221,24 @@ function cleanUnrequestedLayerReply(text, b) {
           return pattern.test(sentence);
         });
       });
+    })
+    .join(' ');
+
+  return cleaned.length > 250 ? cleaned : reply;
+}
+
+function cleanDialogueEnergyReply(text, b) {
+  var reply = String(text || '');
+  if (!b || b.requestMode !== 'dialogue_energy') return reply;
+
+  var forbidden = [
+    /тотем/i, /животн/i, /волк/i, /лис/i, /медвед/i, /олень/i, /сокол/i,
+    /рун/i, /Иггдрасил/i, /сфир/i, /каббал/i, /таро/i, /зодиак/i, /нумер/i, /Лун/i, /лун/i
+  ];
+
+  var cleaned = splitSentences(reply)
+    .filter(function(sentence) {
+      return !forbidden.some(function(pattern) { return pattern.test(sentence); });
     })
     .join(' ');
 
@@ -435,6 +457,25 @@ function getPromptForMode(mode) {
 Не ставь психиатрических диагнозов. Если в вопросе нет прямой угрозы вреда, отвечай мягко: "не вижу подтверждения этому в карте и хронике", "проверь факты", "не принимай решение из страха". При прямой угрозе вреда себе или другим спокойно верни к безопасности.
 Формат ответа обязателен: начни с отдельной строки "Смысл", затем "Сила", "Тень", "В жизни", "Практика". Каждый раздел раскрывай в 2-3 предложения. Без списков всех систем и без лишних символических слоев.`;
   }
+  if (mode === 'dialogue_analysis') {
+    return `Ты — Велес, мудрый разборщик общения. Пользователь вставляет сообщение или диалог и хочет понять, как ответить.
+
+Режим: практический разбор переписки. Эзотерику, профиль, чакры, руны, карты и числа используй только скрыто для тона. В ответе не называй эзотерические системы, символы и традиции.
+Не утверждай, что другой человек точно думает или чувствует. Говори вероятностями: "похоже", "может быть", "в тексте видно".
+Не учи манипуляциям, ревности, давлению, наказанию молчанием и унижению. Цель — ясность, достоинство, интерес и границы.
+Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
+Формат: "Что видно", "Скрытый тон", "Риск", "Как лучше ответить", "Варианты". Дай 3-5 готовых вариантов ответа: спокойный, тёплый, уверенный, игривый или с границей.`;
+  }
+  if (mode === 'dialogue_energy') {
+    return `Ты — Велес, оракул энергий диалога. Пользователь вставляет сообщение или диалог и хочет увидеть, какие энергии участвовали в контакте.
+
+Режим: энергии диалога. Здесь можно явно говорить про энергии и чакры. Не подключай руны, сфиры, каббалистику, Луну, таро, нумерологию и знак зодиака как названные системы.
+Не называй тотем и животных в этом режиме. Здесь главный язык — энергия контакта и чакры.
+Разбирай не "кто прав", а движение контакта: где открытость, где защита, где давление, где страх, где желание сближения, где закрытая тема.
+Не ставь диагнозов и не утверждай, что другой человек точно хотел. Говори как о вероятном энергетическом рисунке.
+Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
+Пиши без нумерованных списков. Формат обязателен: "Общий рисунок", "Твоя энергия", "Энергия собеседника", "Какие чакры включились", "Где перекос", "Как выровнять", "Ответ, который сохранит контакт".`;
+  }
   if (mode === 'matrix_arcana') {
     return `Ты — Велес, оракул. Разбери только выбранный аркан из "Фокус матрицы". Не фатально — это задача, не приговор. Формат: "Аркан", "Свет", "Тень", "Как проявляется", "Практика на 3 дня". Русский, кириллица, без эмодзи.`;
   }
@@ -448,6 +489,8 @@ function getMaxTokensForMode(mode) {
   if (mode === 'moon') return 800;
   if (mode === 'rune_code') return 1100;
   if (mode === 'profile_item') return 950;
+  if (mode === 'dialogue_analysis') return 1100;
+  if (mode === 'dialogue_energy') return 1100;
   if (mode === 'matrix_arcana') return 900;
   if (mode === 'tarot_spread') return 1000;
   return 1050;
@@ -474,6 +517,25 @@ function selectMonosovKnowledge(b) {
   if (!MONOSOV_KNOWLEDGE && !MENSHIKOVA_RUNES_KNOWLEDGE && !ASTRO_NUMEROLOGY_KNOWLEDGE) return 'Дополнительные опоры не подключены';
 
   const mode = b.requestMode || 'oracle';
+  if (mode === 'dialogue_analysis') {
+    return [
+      'Правила разбора переписки',
+      '- Сначала отделить факт текста от догадки о мотивах.',
+      '- Смотреть на тон: тепло, холод, интерес, избегание, давление, обида, флирт, просьба, проверка границ.',
+      '- Давать варианты ответа под разные намерения: продолжить контакт, прояснить, пригласить, поставить границу, завершить.',
+      '- Убирать тревожные анти-паттерны: длинные оправдания, двойные сообщения, пассивную агрессию, давление, самоунижение.',
+      '- Эзотерические данные использовать только для внутреннего выбора тона и не называть в тексте.'
+    ].join('\n');
+  }
+  if (mode === 'dialogue_energy') {
+    return [
+      'Правила энергетики диалога',
+      '- Читать контакт как обмен вниманием, телесной реакцией, голосом, сердцем, границами и желанием сближения.',
+      '- Чакры описывать простыми словами: тело, желание, воля, сердце, голос, видение, смысл.',
+      '- Не делать выводов за другого человека как фактов; говорить о вероятном рисунке контакта.',
+      '- Завершать разбор способом выравнивания: пауза, честная фраза, мягкая граница, короткое приглашение или отказ от давления.'
+    ].join('\n');
+  }
   const focusSection = String(b.profileFocus?.section || '').toLowerCase();
   const focusLabel = String(b.profileFocus?.label || '').toLowerCase();
   const focusValue = String(b.profileFocus?.value || '');
@@ -578,9 +640,13 @@ app.post('/api/oracle', async (req, res) => {
         ? 'аркан матрицы'
         : (b.requestMode === 'profile_item'
           ? 'позиция профиля'
-          : (b.requestMode === 'rune_code'
-            ? 'рунический код'
-            : (b.requestMode === 'moon' ? 'прямой лунный запрос' : 'обычный оракул'))));
+          : (b.requestMode === 'dialogue_analysis'
+            ? 'разбор переписки'
+            : (b.requestMode === 'dialogue_energy'
+              ? 'энергии диалога'
+              : (b.requestMode === 'rune_code'
+                ? 'рунический код'
+                : (b.requestMode === 'moon' ? 'прямой лунный запрос' : 'обычный оракул'))))));
 
     const baseUserData = [
       `Имя: ${b.userName}`,
@@ -631,6 +697,27 @@ app.post('/api/oracle', async (req, res) => {
         ]).join('\n');
       }
 
+      if (b.requestMode === 'dialogue_analysis') {
+        return baseUserData.concat([
+          ``,
+          `--- СКРЫТЫЕ ОПОРЫ ДЛЯ ТОНА ---`,
+          `Активная чакра: ${b.activeChakra || 'не рассчитана'}`,
+          `Тотем: ${b.totem || '—'}`,
+          `Карта дня: ${b.dailyTarot || '—'}`,
+          `Задача: разобрать диалог практично, без явного упоминания этих опор.`
+        ]).join('\n');
+      }
+
+      if (b.requestMode === 'dialogue_energy') {
+        return baseUserData.concat([
+          ``,
+          `--- ЭНЕРГЕТИКА ДИАЛОГА ---`,
+          `Чакра рождения: ${b.birthChakra || 'не рассчитана'}`,
+          `Активная чакра: ${b.activeChakra || 'не рассчитана'}`,
+          `Сводный фон: ${b.oracleInsights || 'нет сводного фона'}`
+        ]).join('\n');
+      }
+
       return baseUserData.concat([
       ``,
       `Знак: ${b.zodiac}, стихия: ${b.element}, управитель: ${b.planet}`,
@@ -655,7 +742,15 @@ app.post('/api/oracle', async (req, res) => {
     if (mentalHealthSignals.includes('Уровень внимания')) parts.push(`\n=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
     const systemText = parts.join('');
 
-    const userMessage = `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
+    const userMessage = (function() {
+      if (b.requestMode === 'dialogue_analysis') {
+        return `Меня зовут ${b.userName}. Разбери это сообщение или диалог практично, без эзотерики на поверхности: ${b.message}`;
+      }
+      if (b.requestMode === 'dialogue_energy') {
+        return `Меня зовут ${b.userName}. Разбери энергии и чакры в этом сообщении или диалоге: ${b.message}`;
+      }
+      return `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
+    })();
 
     const groqBody = JSON.stringify({
       model: 'qwen/qwen3.8-27b',
@@ -723,7 +818,7 @@ app.post('/api/oracle', async (req, res) => {
       rawReply = rawReply.replace(/вернись\s+с\s+(точными\s+)?данными[^.]*\./gi, '');
       rawReply = rawReply.replace(/пустот[а-яё]*\s+запроса[^.]*\./gi, '');
     }
-    const reply = polishReply(ensureNameOpening(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b));
+    const reply = polishReply(ensureNameOpening(cleanDialogueEnergyReply(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b), b));
     console.log('Groq reply:', reply);
 
     res.json({ reply });
