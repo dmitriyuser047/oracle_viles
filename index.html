@@ -635,6 +635,7 @@
         <button class="mode-btn" id="modeTarot" onclick="setOracleMode('tarot')">Расклад таро</button>
         <button class="mode-btn" id="modeDialogue" onclick="setOracleMode('dialogue')">Переписка</button>
         <button class="mode-btn" id="modeDialogueEnergy" onclick="setOracleMode('dialogue_energy')">Энергии диалога</button>
+        <button class="mode-btn" id="modeDream" onclick="setOracleMode('dream')">Сонник</button>
       </div>
       <div class="input-bar">
         <input type="text" id="msgInput" placeholder="Расскажи оракулу, что произошло...">
@@ -722,7 +723,8 @@ function createEmptyChats() {
     oracle: [],
     tarot: [],
     dialogue: [],
-    dialogue_energy: []
+    dialogue_energy: [],
+    dream: []
   };
 }
 
@@ -2132,12 +2134,13 @@ const fallbackResponses = [
 ];
 
 function setOracleMode(mode) {
-  oracleMode = ['tarot', 'dialogue', 'dialogue_energy'].includes(mode) ? mode : 'oracle';
+  oracleMode = ['tarot', 'dialogue', 'dialogue_energy', 'dream'].includes(mode) ? mode : 'oracle';
   var modeMap = {
     oracle: document.getElementById('modeOracle'),
     tarot: document.getElementById('modeTarot'),
     dialogue: document.getElementById('modeDialogue'),
-    dialogue_energy: document.getElementById('modeDialogueEnergy')
+    dialogue_energy: document.getElementById('modeDialogueEnergy'),
+    dream: document.getElementById('modeDream')
   };
   var input = document.getElementById('msgInput');
   Object.keys(modeMap).forEach(function(key) {
@@ -2148,7 +2151,8 @@ function setOracleMode(mode) {
       oracle: 'Расскажи оракулу, что произошло...',
       tarot: 'Сформулируй вопрос для расклада...',
       dialogue: 'Вставь сообщение или диалог для разбора...',
-      dialogue_energy: 'Вставь диалог, чтобы увидеть энергии контакта...'
+      dialogue_energy: 'Вставь диалог, чтобы увидеть энергии контакта...',
+      dream: 'Опиши сон, образы, чувства и чем он закончился...'
     };
     input.placeholder = placeholders[oracleMode] || placeholders.oracle;
   }
@@ -2156,7 +2160,7 @@ function setOracleMode(mode) {
 }
 
 function getCurrentChatKey() {
-  return ['oracle', 'tarot', 'dialogue', 'dialogue_energy'].includes(oracleMode) ? oracleMode : 'oracle';
+  return ['oracle', 'tarot', 'dialogue', 'dialogue_energy', 'dream'].includes(oracleMode) ? oracleMode : 'oracle';
 }
 
 function renderChatItem(item) {
@@ -2196,7 +2200,8 @@ function getEmptyChatHint(key) {
     oracle: 'Здесь будет твой разговор с Велесом. Расскажи, что происходит, и он посмотрит на узор.',
     tarot: 'Здесь отдельный чат раскладов Таро. Сформулируй вопрос, и Велес разложит карты.',
     dialogue: 'Здесь отдельный чат для разбора переписок. Вставь сообщение или диалог, и Велес предложит варианты ответа.',
-    dialogue_energy: 'Здесь отдельный чат энергий диалога. Вставь фрагмент общения, и Велес посмотрит чакры и движение контакта.'
+    dialogue_energy: 'Здесь отдельный чат энергий диалога. Вставь фрагмент общения, и Велес посмотрит чакры и движение контакта.',
+    dream: 'Здесь отдельный сонник. Опиши сон как сцену: место, людей, предметы, чувство и финал.'
   };
   return hints[key] || hints.oracle;
 }
@@ -2295,7 +2300,9 @@ async function askOracle(message, options) {
         ? 'tarot_spread'
         : (oracleMode === 'dialogue'
           ? 'dialogue_analysis'
-          : (oracleMode === 'dialogue_energy' ? 'dialogue_energy' : 'oracle')));
+          : (oracleMode === 'dialogue_energy'
+            ? 'dialogue_energy'
+            : (oracleMode === 'dream' ? 'dream_interpretation' : 'oracle'))));
     if (ctx.requestMode === 'oracle' && isRuneCodeRequest(message)) {
       ctx.requestMode = 'rune_code';
     }
@@ -2460,9 +2467,13 @@ async function sendMessage() {
         ? 'AI-оракул • расклад таро + '
         : (chatKey === 'dialogue'
           ? 'AI-оракул • переписка + '
-          : (chatKey === 'dialogue_energy' ? 'AI-оракул • энергии диалога + ' : 'AI-оракул • карта + '))));
+          : (chatKey === 'dialogue_energy'
+            ? 'AI-оракул • энергии диалога + '
+            : (chatKey === 'dream' ? 'AI-оракул • сонник + ' : 'AI-оракул • карта + ')))));
   var metaText = useAI
-    ? modeText + events.length + ' ' + evtWord
+    ? ((chatKey === 'dialogue' || chatKey === 'dialogue_energy' || chatKey === 'dream')
+      ? modeText.replace(' + ', '')
+      : modeText + events.length + ' ' + evtWord)
     : 'На основе карты + ' + events.length + ' ' + evtWord;
   appendChatMessage('oracle', resp, metaText, chatKey);
 

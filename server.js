@@ -32,6 +32,11 @@ function loadKnowledgeFile(fileName) {
 const MONOSOV_KNOWLEDGE = loadKnowledgeFile('monosov_esoteric.json');
 const MENSHIKOVA_RUNES_KNOWLEDGE = loadKnowledgeFile('menshikova_runes.json');
 const ASTRO_NUMEROLOGY_KNOWLEDGE = loadKnowledgeFile('astro_numerology.json');
+const DREAM_SYMBOLS_KNOWLEDGE = loadKnowledgeFile('dream_symbols.json');
+const TAROT_WAITE_KNOWLEDGE = loadKnowledgeFile('tarot_waite.json');
+const DIALOGUE_PATTERNS_KNOWLEDGE = loadKnowledgeFile('dialogue_patterns.json');
+const PSYCHOLOGY_MODELS_KNOWLEDGE = loadKnowledgeFile('psychology_models.json');
+const ESOTERIC_ROUTING_KNOWLEDGE = loadKnowledgeFile('esoteric_routing.json');
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'oracle-viles' });
@@ -476,6 +481,17 @@ function getPromptForMode(mode) {
 Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
 Пиши без нумерованных списков. Формат обязателен: "Общий рисунок", "Твоя энергия", "Энергия собеседника", "Какие чакры включились", "Где перекос", "Как выровнять", "Ответ, который сохранит контакт".`;
   }
+  if (mode === 'dream_interpretation') {
+    return `Ты — Велес, сонник и толкователь образов. Пользователь описывает сон и хочет понять, что он отражает.
+
+Режим: сонник. Разбирай сон как язык подсознания: образы, эмоции, напряжение, желание, страх, незавершённый внутренний сюжет.
+Не говори, что сон точно предсказывает будущее. Не называй Луну, руны, сфиры, каббалистику, таро, нумерологию, чакры и знак зодиака как отдельные системы.
+Не ссылайся на традиции и книги. Не пиши "в сонниках это означает". Давай живое толкование конкретного сна пользователя.
+Если деталей мало, не отказывайся: выдели 2-3 возможных значения и скажи, какие детали стоит вспомнить.
+Не ставь диагнозов. Если в сне есть тяжёлые или тревожные образы, отвечай спокойно: это может быть следом напряжения, усталости или внутреннего конфликта, а не приговором.
+Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
+Формат ответа обязателен: "Главный образ", "Что сон показывает", "Скрытое чувство", "О чём предупреждает", "Что сделать сейчас". Каждый раздел раскрывай в 2-4 предложения.`;
+  }
   if (mode === 'matrix_arcana') {
     return `Ты — Велес, оракул. Разбери только выбранный аркан из "Фокус матрицы". Не фатально — это задача, не приговор. Формат: "Аркан", "Свет", "Тень", "Как проявляется", "Практика на 3 дня". Русский, кириллица, без эмодзи.`;
   }
@@ -491,6 +507,7 @@ function getMaxTokensForMode(mode) {
   if (mode === 'profile_item') return 950;
   if (mode === 'dialogue_analysis') return 1100;
   if (mode === 'dialogue_energy') return 1100;
+  if (mode === 'dream_interpretation') return 1100;
   if (mode === 'matrix_arcana') return 900;
   if (mode === 'tarot_spread') return 1000;
   return 1050;
@@ -499,6 +516,73 @@ function getMaxTokensForMode(mode) {
 function sectionText(title, items) {
   if (!items || !items.length) return '';
   return `${title}\n` + items.map((item) => `- ${item}`).join('\n');
+}
+
+function normalizeText(value) {
+  return String(value || '').toLowerCase();
+}
+
+function keywordMatches(text, item) {
+  const lowText = normalizeText(text);
+  return (item.keywords || []).some((keyword) => lowText.includes(normalizeText(keyword)));
+}
+
+function pickKeywordItems(items, text, limit) {
+  if (!items || !items.length) return [];
+  const matched = items.filter((item) => keywordMatches(text, item));
+  return (matched.length ? matched : items.slice(0, limit)).slice(0, limit);
+}
+
+function formatDreamKnowledge(b) {
+  if (!DREAM_SYMBOLS_KNOWLEDGE) return '';
+  const symbols = pickKeywordItems(DREAM_SYMBOLS_KNOWLEDGE.symbols, b.message, 5);
+  return [
+    sectionText('Правила сонника', DREAM_SYMBOLS_KNOWLEDGE.rules),
+    'Символы сна',
+    symbols.map((s) => `- ${s.name}: смысл — ${s.meaning}; тень — ${s.shadow}; практика — ${s.practice}.`).join('\n')
+  ].filter(Boolean).join('\n\n');
+}
+
+function formatDialogueKnowledge(b) {
+  const parts = [];
+  if (DIALOGUE_PATTERNS_KNOWLEDGE) {
+    parts.push(sectionText('Правила переписки', DIALOGUE_PATTERNS_KNOWLEDGE.rules));
+    const patterns = pickKeywordItems(DIALOGUE_PATTERNS_KNOWLEDGE.patterns, b.message, 4);
+    parts.push('Паттерны переписки\n' + patterns.map((p) => `- ${p.name}: ${p.meaning}; риск — ${p.risk}; ответ — ${p.reply}.`).join('\n'));
+  }
+  return parts.filter(Boolean).join('\n\n');
+}
+
+function formatPsychologyKnowledge(b, limit = 4) {
+  if (!PSYCHOLOGY_MODELS_KNOWLEDGE) return '';
+  const models = pickKeywordItems(PSYCHOLOGY_MODELS_KNOWLEDGE.models, b.message, limit);
+  return [
+    sectionText('Правила психологического слоя', PSYCHOLOGY_MODELS_KNOWLEDGE.rules),
+    'Модели наблюдения',
+    models.map((m) => `- ${m.name}: сигнал — ${m.signal}; поддержка — ${m.support}.`).join('\n')
+  ].filter(Boolean).join('\n\n');
+}
+
+function formatRoutingKnowledge(mode) {
+  if (!ESOTERIC_ROUTING_KNOWLEDGE) return '';
+  const current = ESOTERIC_ROUTING_KNOWLEDGE.modes.find((item) => item.mode === mode);
+  return [
+    sectionText('Правила выбора языка ответа', ESOTERIC_ROUTING_KNOWLEDGE.rules),
+    current ? `Текущий режим\n- Использовать: ${current.use}; избегать: ${current.avoid}.` : ''
+  ].filter(Boolean).join('\n\n');
+}
+
+function formatTarotKnowledge(b) {
+  if (!TAROT_WAITE_KNOWLEDGE) return '';
+  const cardNames = (b.tarotSpread || []).map((card) => card.name).filter(Boolean);
+  const cards = TAROT_WAITE_KNOWLEDGE.cards.filter((card) => cardNames.includes(card.name));
+  const fallbackCards = cards.length ? cards : TAROT_WAITE_KNOWLEDGE.cards.slice(0, 8);
+  return [
+    sectionText('Правила Таро Уэйта', TAROT_WAITE_KNOWLEDGE.rules),
+    sectionText('Масти', TAROT_WAITE_KNOWLEDGE.suits.map((s) => `${s.name}: ${s.domain}`)),
+    'Карты расклада',
+    fallbackCards.map((c) => `- ${c.name}: ${c.meaning}; тень — ${c.shadow}; совет — ${c.advice}.`).join('\n')
+  ].filter(Boolean).join('\n\n');
 }
 
 function findByName(items, text) {
@@ -514,27 +598,39 @@ function findNumberProfile(value) {
 }
 
 function selectMonosovKnowledge(b) {
-  if (!MONOSOV_KNOWLEDGE && !MENSHIKOVA_RUNES_KNOWLEDGE && !ASTRO_NUMEROLOGY_KNOWLEDGE) return 'Дополнительные опоры не подключены';
+  if (!MONOSOV_KNOWLEDGE && !MENSHIKOVA_RUNES_KNOWLEDGE && !ASTRO_NUMEROLOGY_KNOWLEDGE && !DREAM_SYMBOLS_KNOWLEDGE && !TAROT_WAITE_KNOWLEDGE && !DIALOGUE_PATTERNS_KNOWLEDGE && !PSYCHOLOGY_MODELS_KNOWLEDGE && !ESOTERIC_ROUTING_KNOWLEDGE) return 'Дополнительные опоры не подключены';
 
   const mode = b.requestMode || 'oracle';
   if (mode === 'dialogue_analysis') {
     return [
+      formatRoutingKnowledge(mode),
       'Правила разбора переписки',
       '- Сначала отделить факт текста от догадки о мотивах.',
       '- Смотреть на тон: тепло, холод, интерес, избегание, давление, обида, флирт, просьба, проверка границ.',
       '- Давать варианты ответа под разные намерения: продолжить контакт, прояснить, пригласить, поставить границу, завершить.',
       '- Убирать тревожные анти-паттерны: длинные оправдания, двойные сообщения, пассивную агрессию, давление, самоунижение.',
-      '- Эзотерические данные использовать только для внутреннего выбора тона и не называть в тексте.'
-    ].join('\n');
+      '- Эзотерические данные использовать только для внутреннего выбора тона и не называть в тексте.',
+      formatDialogueKnowledge(b),
+      formatPsychologyKnowledge(b)
+    ].filter(Boolean).join('\n\n');
   }
   if (mode === 'dialogue_energy') {
     return [
+      formatRoutingKnowledge(mode),
       'Правила энергетики диалога',
       '- Читать контакт как обмен вниманием, телесной реакцией, голосом, сердцем, границами и желанием сближения.',
       '- Чакры описывать простыми словами: тело, желание, воля, сердце, голос, видение, смысл.',
       '- Не делать выводов за другого человека как фактов; говорить о вероятном рисунке контакта.',
-      '- Завершать разбор способом выравнивания: пауза, честная фраза, мягкая граница, короткое приглашение или отказ от давления.'
-    ].join('\n');
+      '- Завершать разбор способом выравнивания: пауза, честная фраза, мягкая граница, короткое приглашение или отказ от давления.',
+      formatPsychologyKnowledge(b, 3)
+    ].filter(Boolean).join('\n\n');
+  }
+  if (mode === 'dream_interpretation') {
+    return [
+      formatRoutingKnowledge(mode),
+      formatDreamKnowledge(b),
+      formatPsychologyKnowledge(b, 3)
+    ].filter(Boolean).join('\n\n');
   }
   const focusSection = String(b.profileFocus?.section || '').toLowerCase();
   const focusLabel = String(b.profileFocus?.label || '').toLowerCase();
@@ -545,6 +641,9 @@ function selectMonosovKnowledge(b) {
   const wantsNumerology = focusSection.includes('нумер') || focusSection.includes('цикл') || message.includes('нумер') || focusLabel.includes('число') || focusLabel.includes('персональ');
   const wantsTarotOrKabbalah = mode === 'tarot_spread' || focusSection.includes('таро') || focusSection.includes('каббал') || message.includes('таро') || message.includes('сфир') || message.includes('каббал');
   const wantsRunes = mode === 'rune_code' || focusSection.includes('рун') || message.includes('рун');
+
+  const routing = formatRoutingKnowledge(mode);
+  if (routing) blocks.push(routing);
 
   if (ASTRO_NUMEROLOGY_KNOWLEDGE && wantsAstrology) {
     blocks.push(sectionText('Правила астрологии и нумерологии', ASTRO_NUMEROLOGY_KNOWLEDGE.rules));
@@ -573,6 +672,11 @@ function selectMonosovKnowledge(b) {
   if (MONOSOV_KNOWLEDGE && wantsTarotOrKabbalah) {
     blocks.push(sectionText('Таро и каббалистическая практика', MONOSOV_KNOWLEDGE.tarot_and_sefirot.lens));
     blocks.push(sectionText('Практическое применение', MONOSOV_KNOWLEDGE.tarot_and_sefirot.practice));
+  }
+
+  if (mode === 'tarot_spread') {
+    const tarot = formatTarotKnowledge(b);
+    if (tarot) blocks.push(tarot);
   }
 
   if (wantsRunes) {
@@ -621,8 +725,14 @@ function selectMonosovKnowledge(b) {
     blocks.push(sectionText('Слово, звук и символ', MONOSOV_KNOWLEDGE.language_and_sound.lens));
   }
 
+  const psychology = mode === 'oracle' ? formatPsychologyKnowledge(b, 3) : '';
+  if (psychology) blocks.push(psychology);
+
   let text = blocks.filter(Boolean).join('\n\n');
-  if (text.length > 1400) text = text.substring(0, 1400);
+  const limit = mode === 'tarot_spread' || mode === 'dream_interpretation'
+    ? 3200
+    : (mode === 'dialogue_analysis' || mode === 'dialogue_energy' ? 2400 : 1800);
+  if (text.length > limit) text = text.substring(0, limit);
   return text || '';
 }
 
@@ -644,9 +754,11 @@ app.post('/api/oracle', async (req, res) => {
             ? 'разбор переписки'
             : (b.requestMode === 'dialogue_energy'
               ? 'энергии диалога'
-              : (b.requestMode === 'rune_code'
-                ? 'рунический код'
-                : (b.requestMode === 'moon' ? 'прямой лунный запрос' : 'обычный оракул'))))));
+              : (b.requestMode === 'dream_interpretation'
+                ? 'сонник'
+                : (b.requestMode === 'rune_code'
+                  ? 'рунический код'
+                  : (b.requestMode === 'moon' ? 'прямой лунный запрос' : 'обычный оракул')))))));
 
     const baseUserData = [
       `Имя: ${b.userName}`,
@@ -718,6 +830,15 @@ app.post('/api/oracle', async (req, res) => {
         ]).join('\n');
       }
 
+      if (b.requestMode === 'dream_interpretation') {
+        return baseUserData.concat([
+          ``,
+          `--- СОННИК ---`,
+          `Сводный фон профиля: ${b.oracleInsights || 'нет сводного фона'}`,
+          `Задача: разобрать сон как психологический и символический сюжет без ссылок на системы.`
+        ]).join('\n');
+      }
+
       return baseUserData.concat([
       ``,
       `Знак: ${b.zodiac}, стихия: ${b.element}, управитель: ${b.planet}`,
@@ -748,6 +869,9 @@ app.post('/api/oracle', async (req, res) => {
       }
       if (b.requestMode === 'dialogue_energy') {
         return `Меня зовут ${b.userName}. Разбери энергии и чакры в этом сообщении или диалоге: ${b.message}`;
+      }
+      if (b.requestMode === 'dream_interpretation') {
+        return `Меня зовут ${b.userName}. Растолкуй этот сон подробно и понятно: ${b.message}`;
       }
       return `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
     })();
