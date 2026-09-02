@@ -283,6 +283,16 @@
 
   /* Diary */
   .diary-list { flex: 1; padding: 0 16px; overflow-y: auto; padding-bottom: 80px; }
+  .diary-toolbar {
+    display: flex; justify-content: flex-end; margin: 0 16px 12px;
+  }
+  .diary-clear-btn {
+    min-height: 34px; padding: 0 12px; border-radius: 17px;
+    border: 0.5px solid rgba(190,80,120,0.18);
+    background: rgba(190,80,120,0.08); color: #c99bb0;
+    font-family: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .diary-clear-btn:active { transform: scale(0.98); }
   .diary-patterns {
     margin-bottom: 18px;
   }
@@ -325,6 +335,12 @@
     border: 0.5px solid rgba(100,70,180,0.15);
     border-radius: 16px;
     padding: 16px 18px; margin-bottom: 10px;
+    cursor: pointer; transition: transform 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .diary-entry:active { transform: scale(0.99); }
+  .diary-entry:hover {
+    border-color: rgba(140,100,240,0.28);
+    background: linear-gradient(145deg, rgba(40,25,85,0.92), rgba(20,14,50,0.92));
   }
   .diary-entry .date {
     font-size: 11px; color: #7b6baa; margin-bottom: 8px;
@@ -339,6 +355,54 @@
     font-size: 11px; color: #4a3a70; margin-top: 10px;
     padding-top: 10px; border-top: 0.5px solid rgba(100,70,180,0.08);
     display: flex; gap: 12px;
+  }
+  .diary-detail {
+    flex: 1; padding: 0 16px 96px; overflow-y: auto;
+  }
+  .detail-back {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 36px; padding: 0 12px; margin-bottom: 16px;
+    border-radius: 18px; border: 0.5px solid rgba(100,70,180,0.18);
+    background: rgba(255,255,255,0.035); color: #b8a8e8;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  .detail-card {
+    background: linear-gradient(145deg, rgba(30,20,70,0.95), rgba(18,12,45,0.95));
+    border: 0.5px solid rgba(140,100,240,0.2);
+    border-radius: 16px;
+    padding: 18px; margin-bottom: 12px;
+  }
+  .detail-label {
+    font-size: 9px; color: #7b6baa; letter-spacing: 3px;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .detail-date { font-size: 13px; color: #9d8dcc; margin-bottom: 14px; line-height: 1.4; }
+  .detail-text {
+    font-size: 15px; color: #e0d8f0; line-height: 1.65;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .detail-meta {
+    display: grid; gap: 8px; margin-top: 16px; padding-top: 14px;
+    border-top: 0.5px solid rgba(100,70,180,0.12);
+  }
+  .detail-meta-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 13px; line-height: 1.4;
+  }
+  .detail-meta-row span:first-child { color: #7b6baa; }
+  .detail-meta-row span:last-child { color: #c8c0e0; text-align: right; overflow-wrap: anywhere; }
+  .detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-action-btn {
+    min-height: 42px; border-radius: 14px; border: 0.5px solid rgba(120,80,220,0.24);
+    background: rgba(120,80,220,0.12); color: #e7ddff;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  .detail-action-btn.secondary { background: rgba(255,255,255,0.035); color: #9d8dcc; }
+  .detail-action-btn.danger {
+    grid-column: 1 / -1;
+    border-color: rgba(190,80,120,0.18);
+    background: rgba(190,80,120,0.08);
+    color: #d0a0b2;
   }
 
   .add-entry-btn {
@@ -584,8 +648,17 @@
   <!-- ДНЕВНИК -->
   <div class="screen" id="screen-diary">
     <div class="screen-title">Дневник</div>
+    <div class="diary-toolbar" id="diaryToolbar" style="display:none;">
+      <button class="diary-clear-btn" onclick="clearDiaryEntries()">Очистить записи</button>
+    </div>
     <div class="diary-list" id="diaryList"></div>
     <button class="add-entry-btn" onclick="addDiaryEntry()" style="display:none;" id="addEntryBtn">+</button>
+  </div>
+
+  <!-- ЗАПИСЬ ДНЕВНИКА -->
+  <div class="screen" id="screen-diary-detail">
+    <div class="screen-title">Запись</div>
+    <div class="diary-detail" id="diaryDetail"></div>
   </div>
 
   <!-- СВЯЗИ -->
@@ -642,12 +715,25 @@ let userSign = '';
 let userSignIdx = 0;
 let events = [];
 let userBirthValue = '';
+let chatHistories = {};
+
+function createEmptyChats() {
+  return {
+    oracle: [],
+    tarot: [],
+    dialogue: [],
+    dialogue_energy: []
+  };
+}
+
+chatHistories = createEmptyChats();
 
 function saveToStorage() {
   try {
     localStorage.setItem('veles_user', JSON.stringify({
       name: userName,
       birth: userBirthValue,
+      chats: chatHistories,
       events: events.map(function(e) { return { text: e.text, ts: e.date.getTime() }; })
     }));
   } catch(e) {}
@@ -663,6 +749,7 @@ function loadFromStorage() {
       if (data.events) {
         events = data.events.map(function(e) { return { text: e.text, date: new Date(e.ts) }; });
       }
+      chatHistories = Object.assign(createEmptyChats(), data.chats || {});
       return true;
     }
   } catch(e) {}
@@ -677,11 +764,16 @@ function clearStorage() {
   userSignIdx = 0;
   events = [];
   userBirthValue = '';
+  chatHistories = createEmptyChats();
   document.getElementById('screen-profile').classList.remove('active');
   document.getElementById('screen-oracle').classList.remove('active');
+  document.getElementById('screen-diary').classList.remove('active');
+  document.getElementById('screen-diary-detail').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   document.getElementById('mainNav').style.display = 'none';
   document.getElementById('chatArea').innerHTML = '';
+  var diaryToolbar = document.getElementById('diaryToolbar');
+  if (diaryToolbar) diaryToolbar.style.display = 'none';
   document.getElementById('nameInput').value = '';
   document.getElementById('birthInput').value = '';
 }
@@ -1712,7 +1804,11 @@ function startApp(fromStorage) {
     : 'Приветствую, <span class="accent">' + userName + '</span>. Я изучил твою карту — ' + userSign + '. Я вижу закономерности, ждущие раскрытия.\n\nРасскажи мне, что происходит в твоей жизни. Чем больше узнаю — тем точнее увижу.';
 
   setTimeout(function() {
-    addOracleMsg(greeting, fromStorage ? 'Данные восстановлены' : 'Натальная карта проанализирована');
+    if (!chatHistories.oracle.length) {
+      appendChatMessage('oracle', greeting, fromStorage ? 'Данные восстановлены' : 'Натальная карта проанализирована', 'oracle');
+    } else {
+      renderCurrentChat();
+    }
   }, 600);
 
   setTimeout(function() {
@@ -2056,6 +2152,66 @@ function setOracleMode(mode) {
     };
     input.placeholder = placeholders[oracleMode] || placeholders.oracle;
   }
+  renderCurrentChat();
+}
+
+function getCurrentChatKey() {
+  return ['oracle', 'tarot', 'dialogue', 'dialogue_energy'].includes(oracleMode) ? oracleMode : 'oracle';
+}
+
+function renderChatItem(item) {
+  if (!item) return '';
+  if (item.type === 'user') {
+    return '<div class="msg-user-wrap"><div class="msg-user">' + escapeHtml(item.text || '') + '</div></div>';
+  }
+  if (item.type === 'viral') {
+    return '<div class="viral-card">' +
+      '<p>' + escapeHtml(item.text || '').replace(/\n/g, '<br>') + '</p>' +
+      '<div class="viral-btns">' +
+        '<button class="btn-send" onclick="shareLink()">Отправить ссылку</button>' +
+        '<button class="btn-later" onclick="this.closest(&quot;.viral-card&quot;).style.display=&quot;none&quot;">Позже</button>' +
+      '</div>' +
+    '</div>';
+  }
+  return '<div class="msg"><div class="msg-oracle"><p>' + String(item.text || '').replace(/\n/g,'<br>') + '</p>' +
+    (item.meta ? '<div class="meta"><div class="meta-dot"></div>' + escapeHtml(item.meta) + '</div>' : '') +
+    '</div></div>';
+}
+
+function renderCurrentChat() {
+  var chat = document.getElementById('chatArea');
+  if (!chat) return;
+  var key = getCurrentChatKey();
+  var history = chatHistories[key] || [];
+  if (history.length === 0) {
+    chat.innerHTML = '<div class="msg"><div class="msg-oracle"><p>' + getEmptyChatHint(key) + '</p></div></div>';
+  } else {
+    chat.innerHTML = history.map(renderChatItem).join('');
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function getEmptyChatHint(key) {
+  var hints = {
+    oracle: 'Здесь будет твой разговор с Велесом. Расскажи, что происходит, и он посмотрит на узор.',
+    tarot: 'Здесь отдельный чат раскладов Таро. Сформулируй вопрос, и Велес разложит карты.',
+    dialogue: 'Здесь отдельный чат для разбора переписок. Вставь сообщение или диалог, и Велес предложит варианты ответа.',
+    dialogue_energy: 'Здесь отдельный чат энергий диалога. Вставь фрагмент общения, и Велес посмотрит чакры и движение контакта.'
+  };
+  return hints[key] || hints.oracle;
+}
+
+function appendChatMessage(type, text, meta, key) {
+  var chatKey = key || getCurrentChatKey();
+  if (!chatHistories[chatKey]) chatHistories[chatKey] = [];
+  chatHistories[chatKey].push({
+    type: type,
+    text: text,
+    meta: meta || '',
+    ts: Date.now()
+  });
+  renderCurrentChat();
+  saveToStorage();
 }
 
 function buildEsotericContext(message) {
@@ -2199,10 +2355,7 @@ async function requestMatrixArcana(label, num, desc) {
   setOracleMode('oracle');
 
   var chat = document.getElementById('chatArea');
-  var d = document.createElement('div');
-  d.className = 'msg-user-wrap';
-  d.innerHTML = '<div class="msg-user">' + escapeHtml(label) + ': аркан ' + num + '</div>';
-  chat.appendChild(d);
+  appendChatMessage('user', label + ': аркан ' + num, '', 'oracle');
 
   var typing = document.createElement('div');
   typing.className = 'msg';
@@ -2220,7 +2373,7 @@ async function requestMatrixArcana(label, num, desc) {
   });
 
   if (typing.parentNode) chat.removeChild(typing);
-  addOracleMsg(resp, 'AI-оракул • аркан матрицы');
+  appendChatMessage('oracle', resp, 'AI-оракул • аркан матрицы', 'oracle');
 }
 
 async function requestProfileInsight(section, label, value) {
@@ -2229,10 +2382,7 @@ async function requestProfileInsight(section, label, value) {
   setOracleMode('oracle');
 
   var chat = document.getElementById('chatArea');
-  var d = document.createElement('div');
-  d.className = 'msg-user-wrap';
-  d.innerHTML = '<div class="msg-user">' + escapeHtml(section + ' • ' + label) + '</div>';
-  chat.appendChild(d);
+  appendChatMessage('user', section + ' • ' + label, '', 'oracle');
 
   var typing = document.createElement('div');
   typing.className = 'msg';
@@ -2250,16 +2400,11 @@ async function requestProfileInsight(section, label, value) {
   });
 
   if (typing.parentNode) chat.removeChild(typing);
-  addOracleMsg(resp, 'AI-оракул • позиция профиля');
+  appendChatMessage('oracle', resp, 'AI-оракул • позиция профиля', 'oracle');
 }
 
 function addOracleMsg(text, meta) {
-  var chat = document.getElementById('chatArea');
-  var d = document.createElement('div');
-  d.className = 'msg';
-  d.innerHTML = '<div class="msg-oracle"><p>' + text.replace(/\n/g,'<br>') + '</p>' + (meta ? '<div class="meta"><div class="meta-dot"></div>' + meta + '</div>' : '') + '</div>';
-  chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
+  appendChatMessage('oracle', text, meta);
 }
 
 function addViralCard() {
@@ -2284,19 +2429,20 @@ async function sendMessage() {
   if (!text) return;
   input.value = '';
 
+  var chatKey = getCurrentChatKey();
   var chat = document.getElementById('chatArea');
-  var d = document.createElement('div');
-  d.className = 'msg-user-wrap';
-  d.innerHTML = '<div class="msg-user">' + text + '</div>';
-  chat.appendChild(d);
+  appendChatMessage('user', text, '', chatKey);
 
-  events.push({ text: text, date: new Date() });
-  updateDiary();
-  saveToStorage();
+  if (chatKey === 'oracle' || chatKey === 'tarot') {
+    events.push({ text: text, date: new Date() });
+    updateDiary();
+    saveToStorage();
+  }
 
   var typing = document.createElement('div');
   typing.className = 'msg';
   typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chat = document.getElementById('chatArea');
   chat.appendChild(typing);
   chat.scrollTop = chat.scrollHeight;
 
@@ -2310,17 +2456,17 @@ async function sendMessage() {
     ? 'AI-оракул • рунический код + '
     : (isMoonRequest(text)
       ? 'AI-оракул • луна + '
-      : (oracleMode === 'tarot'
+      : (chatKey === 'tarot'
         ? 'AI-оракул • расклад таро + '
-        : (oracleMode === 'dialogue'
+        : (chatKey === 'dialogue'
           ? 'AI-оракул • переписка + '
-          : (oracleMode === 'dialogue_energy' ? 'AI-оракул • энергии диалога + ' : 'AI-оракул • карта + '))));
+          : (chatKey === 'dialogue_energy' ? 'AI-оракул • энергии диалога + ' : 'AI-оракул • карта + '))));
   var metaText = useAI
     ? modeText + events.length + ' ' + evtWord
     : 'На основе карты + ' + events.length + ' ' + evtWord;
-  addOracleMsg(resp, metaText);
+  appendChatMessage('oracle', resp, metaText, chatKey);
 
-  if (events.length === 3) {
+  if ((chatKey === 'oracle' || chatKey === 'tarot') && events.length === 3) {
     setTimeout(function() {
       var pc = document.createElement('div');
       pc.className = 'pattern-card';
@@ -2340,25 +2486,98 @@ async function sendMessage() {
 
 function updateDiary() {
   var dl = document.getElementById('diaryList');
+  var toolbar = document.getElementById('diaryToolbar');
   var months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-  var entriesHtml = events.map(function(e) {
+  var entriesHtml = events.map(function(e, originalIndex) {
+    return { entry: e, index: originalIndex };
+  }).sort(function(a, b) {
+    return b.entry.date.getTime() - a.entry.date.getTime();
+  }).map(function(item) {
+    var e = item.entry;
     var d = e.date;
     var de = getDayElement(d);
     var dt = dailyTarot(d);
-    return '<div class="diary-entry">' +
+    return '<div class="diary-entry" onclick="openDiaryEntry(' + item.index + ')">' +
       '<div class="date">' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ', ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0') + '</div>' +
       '<div class="text">' + escapeHtml(e.text) + '</div>' +
       '<div class="transit">' + de.ruler + ' • ' + dt.name + '</div>' +
     '</div>';
-  }).reverse().join('');
+  }).join('');
   dl.innerHTML = buildDiaryPatterns() +
     '<div class="diary-section-label"><div class="pattern-icon"><div class="pattern-icon-inner"></div></div>Записи</div>' +
     entriesHtml;
-  document.getElementById('addEntryBtn').style.display = 'flex';
-  document.getElementById('diaryDot').style.display = 'block';
+  if (toolbar) toolbar.style.display = events.length > 0 ? 'flex' : 'none';
+  document.getElementById('addEntryBtn').style.display = document.getElementById('screen-diary').classList.contains('active') && events.length > 0 ? 'flex' : 'none';
+  document.getElementById('diaryDot').style.display = events.length > 0 ? 'block' : 'none';
   var ec = document.getElementById('eventCount');
   if (ec) ec.textContent = events.length;
   updatePatternCount();
+}
+
+function clearDiaryEntries() {
+  if (!events.length) return;
+  if (!confirm('Очистить все записи дневника?')) return;
+  events = [];
+  updateDiary();
+  saveToStorage();
+  var detail = document.getElementById('diaryDetail');
+  if (detail) detail.innerHTML = '';
+}
+
+function formatDiaryDate(d) {
+  return d.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function openDiaryEntry(index) {
+  var entry = events[index];
+  if (!entry) return;
+
+  var d = entry.date;
+  var de = getDayElement(d);
+  var dt = dailyTarot(d);
+  var detail = document.getElementById('diaryDetail');
+  detail.innerHTML =
+    '<button class="detail-back" onclick="switchScreen(&quot;diary&quot;)">← Назад</button>' +
+    '<div class="detail-card">' +
+      '<div class="detail-label">Событие</div>' +
+      '<div class="detail-date">' + formatDiaryDate(d) + '</div>' +
+      '<div class="detail-text">' + escapeHtml(entry.text) + '</div>' +
+      '<div class="detail-meta">' +
+        '<div class="detail-meta-row"><span>Управитель</span><span>' + escapeHtml(de.ruler) + ' (' + escapeHtml(de.day) + ')</span></div>' +
+        '<div class="detail-meta-row"><span>Карта дня</span><span>' + escapeHtml(dt.name) + '</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="detail-actions">' +
+      '<button class="detail-action-btn" onclick="askAboutDiaryEntry(' + index + ')">Спросить Велеса</button>' +
+      '<button class="detail-action-btn secondary" onclick="switchScreen(&quot;diary&quot;)">К списку</button>' +
+      '<button class="detail-action-btn danger" onclick="deleteDiaryEntry(' + index + ')">Удалить запись</button>' +
+    '</div>';
+
+  switchScreen('diary-detail');
+}
+
+function deleteDiaryEntry(index) {
+  if (!events[index]) return;
+  if (!confirm('Удалить эту запись из дневника?')) return;
+  events.splice(index, 1);
+  updateDiary();
+  saveToStorage();
+  switchScreen('diary');
+}
+
+function askAboutDiaryEntry(index) {
+  var entry = events[index];
+  if (!entry) return;
+  switchScreen('oracle');
+  var input = document.getElementById('msgInput');
+  input.value = 'Разбери эту запись из дневника: ' + entry.text;
+  input.focus();
 }
 
 function addDiaryEntry() {
@@ -2366,19 +2585,66 @@ function addDiaryEntry() {
   document.getElementById('msgInput').focus();
 }
 
-function shareLink() {
+function getShareUrl() {
+  try {
+    var url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch(e) {
+    return window.location.href;
+  }
+}
+
+function showToast(text) {
+  document.querySelectorAll('.toast').forEach(function(t) { t.remove(); });
+  var toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = text;
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 2200);
+}
+
+function copyTextFallback(text) {
+  var input = document.createElement('textarea');
+  input.value = text;
+  input.setAttribute('readonly', '');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.appendChild(input);
+  input.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) {}
+  input.remove();
+  return ok;
+}
+
+async function shareLink() {
+  var url = getShareUrl();
+  var title = 'Велес';
+  var text = 'Попробуй Велеса: оракул, таро и разбор переписок в одном месте.';
+
   if (navigator.share) {
-    navigator.share({
-      title: 'Велес — AI Оракул',
-      text: 'Оракул видит связь между нами. Узнай, что нас связывает:',
-      url: window.location.href
-    });
+    try {
+      await navigator.share({ title: title, text: text, url: url });
+      return;
+    } catch(e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      showToast('Ссылка скопирована');
+      return;
+    }
+  } catch(e) {}
+
+  if (copyTextFallback(url)) {
+    showToast('Ссылка скопирована');
   } else {
-    var t = document.createElement('div');
-    t.className = 'toast';
-    t.textContent = 'Ссылка скопирована!';
-    document.body.appendChild(t);
-    setTimeout(function() { t.remove(); }, 2000);
+    showToast('Не удалось скопировать ссылку');
   }
 }
 
@@ -2391,6 +2657,8 @@ function switchScreen(name) {
     n.classList.toggle('active', isActive);
   });
   document.getElementById('addEntryBtn').style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
+  var toolbar = document.getElementById('diaryToolbar');
+  if (toolbar) toolbar.style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
   if (name === 'diary') document.getElementById('diaryDot').style.display = 'none';
 }
 
