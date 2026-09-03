@@ -47,15 +47,19 @@ const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский о
 ОБЯЗАТЕЛЬНО: начни ответ с имени человека из блока КАРТА. Используй ТОЛЬКО данные оттуда. Не выдумывай и не подменяй данные.
 ЗАПРЕЩЕНО: говорить "имя скрыто" или "имя неизвестно", выдумывать карты/руны/знаки которых нет в КАРТЕ, использовать китайские иероглифы.
 Не объясняй, откуда взяты значения, и не называй внешние школы. Знания должны звучать как цельный голос Велеса, а не как пересказ справочника.
+Не вставляй ссылки, URL, названия сайтов, строки "источник", "ссылка", "литература" и похожие отсылки. Ответ должен выглядеть как собственный разбор Велеса.
 
 Правила:
 - Выбери 1 главный символ из КАРТЫ. Поддерживающий слой используй только для смысла и тона, не называй его отдельной системой без прямого вопроса.
+- В обычном режиме не говори "по карте дня", "исходя из карты дня" или "карта дня показывает", если человек прямо не спросил о карте. Карта дня нужна как внутренняя опора, а не как видимое объяснение всего ответа.
 - Не смешивай каббалистику и руны. Не называй Луну, если человек прямо не спросил про Луну, лунный день, фазу, новолуние или полнолуние.
 - Психологию используй скрыто: замечай страх, контроль, избегание, повтор роли, потребность в опоре, но не называй теории.
 - Не отвечай односложно. Даже на простой вопрос дай ощущение анализа: что видно в ситуации, почему это могло сложиться, где ресурс человека, где ловушка и какой следующий шаг.
 - Не ограничивайся советом. Сначала покажи скрытый узор ситуации, затем уже дай действие.
 - Не ставь диагнозы и не называй человека больным. Если нет прямой угрозы вреда себе или другим, отвечай мягко: "не вижу подтверждения этому в карте и хронике", "проверь факты", "не принимай решение из страха".
 - Не спорь с верой человека и не разоблачай мистику. Возвращай выбор, а не приговор.
+- Следи за грамматикой: согласуй род, число и падежи; не смешивай "ты" и "вы"; не используй машинные фразы.
+- Не используй формы с вариантами рода вроде "сделал(а)", "готов(а)", "уверенным(ой)". Перефразируй нейтрально: "было чувство", "получилось", "есть готовность".
 - Только русский, кириллица, без эмодзи. Обращайся по имени на "ты".
 
 /no_think
@@ -80,6 +84,145 @@ function polishReply(text) {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
+}
+
+function cleanGrammarReply(text) {
+  return String(text || '')
+    .replace(/([.!?])\s+(Тип сна|Главный образ|Что сон показывает|Скрытое чувство|О чём предупреждает|Что сделать сейчас|Общий рисунок|Что притягивает|Где трение|Как тебя может считывать человек|Как общаться|Чего не делать|Практика на 3 дня|Смысл|Сила|Тень|В жизни|Практика|Аркан|Код)(?=\s|[:.\n]|$)/g, '$1\n\n$2')
+    .replace(/(Тип сна|Главный образ|Что сон показывает|Скрытое чувство|О чём предупреждает|Что сделать сейчас|Общий рисунок|Что притягивает|Где трение|Как тебя может считывать человек|Как общаться|Чего не делать|Практика на 3 дня|Смысл|Сила|Тень|В жизни|Практика|Аркан|Код)\r?\n([а-яё])/g, function(_match, heading, letter) {
+      return heading + '\n' + letter.toUpperCase();
+    })
+    .replace(/^([^,\n]{2,40}),\s*(тип сна|смысл|главный образ|что видно|общий рисунок|аркан|код|лунный фон)(?=\s|[:.\n]|$)/iu, function(_match, name, heading) {
+      return name + ', смотрю.\n\n' + heading.charAt(0).toUpperCase() + heading.slice(1);
+    })
+    .replace(/\bВаша психика\b/g, 'Твоя психика')
+    .replace(/\bваша психика\b/g, 'твоя психика')
+    .replace(/\bВаше\b/g, 'Твоё')
+    .replace(/\bваше\b/g, 'твоё')
+    .replace(/\bВаша\b/g, 'Твоя')
+    .replace(/\bваша\b/g, 'твоя')
+    .replace(/\bВаши\b/g, 'Твои')
+    .replace(/\bваши\b/g, 'твои')
+    .replace(/\bВаш\b/g, 'Твой')
+    .replace(/\bваш\b/g, 'твой')
+    .replace(/\bВас\b/g, 'тебя')
+    .replace(/\bвас\b/g, 'тебя')
+    .replace(/\bВам\b/g, 'тебе')
+    .replace(/\bвам\b/g, 'тебе')
+    .replace(/\bВашего\b/g, 'твоего')
+    .replace(/\bвашего\b/g, 'твоего')
+    .replace(/\bВашему\b/g, 'твоему')
+    .replace(/\bвашему\b/g, 'твоему')
+    .replace(/\bВашим\b/g, 'твоим')
+    .replace(/\bвашим\b/g, 'твоим')
+    .replace(/\bВашем\b/g, 'твоём')
+    .replace(/\bвашем\b/g, 'твоём')
+    .replace(/\bв твоей карт дня\b/gi, 'в твоей карте дня')
+    .replace(/\bв твоей карт[ае] дня\b/gi, 'в твоей карте дня')
+    .replace(/\bнакопленное усталость\b/gi, 'накопленная усталость')
+    .replace(/\bнакопленное тревога\b/gi, 'накопленная тревога')
+    .replace(/\bнакопленное напряжение\b/gi, 'накопленное напряжение')
+    .replace(/\bнакопленную напряжение\b/gi, 'накопленное напряжение')
+    .replace(/\bв внешн/gi, 'во внешн')
+    .replace(/\bчувствуем в тебя\b/gi, 'чувствуют в тебе')
+    .replace(/\bмасмой\b/gi, 'маской')
+    .replace(/\bсигналазирует\b/gi, 'сигнализирует')
+    .replace(/\bпродолжайшь\b/gi, 'продолжаешь')
+    .replace(/\bначнешь\b/gi, 'начнёшь')
+    .replace(/\bчувствовал\(а\) себя\b/gi, 'было ощущение себя')
+    .replace(/\bсделал\(а\)\b/gi, 'сделано')
+    .replace(/\bготов\(а\)\b/gi, 'есть готовность')
+    .replace(/\bуверенным\(ой\)\b/gi, 'увереннее')
+    .replace(/\bгнетет\b/gi, 'гнёт')
+    .replace(/\badrenaline\b/gi, 'адреналине')
+    .replace(/\bacted\b/gi, 'сработал')
+    .replace(/\bпривычный рубашку\b/gi, 'привычную оболочку')
+    .replace(/\bне пытайтесь\b/gi, 'не пытайся')
+    .replace(/\bпытайтесь\b/gi, 'пытайся')
+    .replace(/\bиспользуйте\b/gi, 'используй')
+    .replace(/\bговорите\b/gi, 'говори')
+    .replace(/\bизбегайте\b/gi, 'избегай')
+    .replace(/\bпризнайте\b/gi, 'признай')
+    .replace(/\bпрактикуйте\b/gi, 'практикуй')
+    .replace(/\bзанимайтесь\b/gi, 'занимайся')
+    .replace(/\bпрактикуйте\b/gi, 'практикуй')
+    .replace(/\bобратите внимание\b/gi, 'обрати внимание')
+    .replace(/\bпроверьте\b/gi, 'проверь')
+    .replace(/\bзапишите\b/gi, 'запиши')
+    .replace(/\bсделайте\b/gi, 'сделай')
+    .replace(/\bназовите\b/gi, 'назови')
+    .replace(/\bотложите\b/gi, 'отложи')
+    .replace(/\bпримите\b/gi, 'прими')
+    .replace(/\bпозвольте\b/gi, 'позволь')
+    .replace(/(^|[^А-Яа-яЁё])Примите(?=$|[^А-Яа-яЁё])/g, '$1Прими')
+    .replace(/(^|[^А-Яа-яЁё])примите(?=$|[^А-Яа-яЁё])/g, '$1прими')
+    .replace(/\bслишком мало действуй\b/gi, 'слишком мало действуешь')
+    .replace(/\bты рискуешь потерять энергию на то, чтобы просто жить\b/gi, 'ты рискуешь тратить энергию вместо того, чтобы просто жить')
+    .replace(/\bчто происходит\?/gi, 'что происходит?')
+    .replace(/(^|[^А-Яа-яЁё])Вас(?=$|[^А-Яа-яЁё])/g, '$1тебя')
+    .replace(/(^|[^А-Яа-яЁё])вас(?=$|[^А-Яа-яЁё])/g, '$1тебя')
+    .replace(/(^|[^А-Яа-яЁё])Вам(?=$|[^А-Яа-яЁё])/g, '$1тебе')
+    .replace(/(^|[^А-Яа-яЁё])вам(?=$|[^А-Яа-яЁё])/g, '$1тебе')
+    .replace(/(^|[^А-Яа-яЁё])Ваш(?=$|[^А-Яа-яЁё])/g, '$1твой')
+    .replace(/(^|[^А-Яа-яЁё])ваш(?=$|[^А-Яа-яЁё])/g, '$1твой')
+    .replace(/(^|[^А-Яа-яЁё])Ваша(?=$|[^А-Яа-яЁё])/g, '$1твоя')
+    .replace(/(^|[^А-Яа-яЁё])ваша(?=$|[^А-Яа-яЁё])/g, '$1твоя')
+    .replace(/(^|[^А-Яа-яЁё])Ваше(?=$|[^А-Яа-яЁё])/g, '$1твоё')
+    .replace(/(^|[^А-Яа-яЁё])ваше(?=$|[^А-Яа-яЁё])/g, '$1твоё')
+    .replace(/(^|[^А-Яа-яЁё])Ваши(?=$|[^А-Яа-яЁё])/g, '$1твои')
+    .replace(/(^|[^А-Яа-яЁё])ваши(?=$|[^А-Яа-яЁё])/g, '$1твои')
+    .replace(/(^|[^А-Яа-яЁё])используйте(?=$|[^А-Яа-яЁё])/gi, '$1используй')
+    .replace(/(^|[^А-Яа-яЁё])говорите(?=$|[^А-Яа-яЁё])/gi, '$1говори')
+    .replace(/(^|[^А-Яа-яЁё])избегайте(?=$|[^А-Яа-яЁё])/gi, '$1избегай')
+    .replace(/(^|[^А-Яа-яЁё])не пытайтесь(?=$|[^А-Яа-яЁё])/gi, '$1не пытайся')
+    .replace(/(^|[^А-Яа-яЁё])практикуйте(?=$|[^А-Яа-яЁё])/gi, '$1практикуй')
+    .replace(/(^|[^А-Яа-яЁё])признайте(?=$|[^А-Яа-яЁё])/gi, '$1признай');
+}
+
+function cleanExternalReferencesReply(text, b) {
+  var reply = String(text || '')
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/|www\.)[^)]+\)/gi, '$1')
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/\bwww\.\S+/gi, '')
+    .replace(/^\s*(источник|источники|ссылка|ссылки|литература|references?)\s*:.*$/gim, '')
+    .replace(/^\s*[-*]\s*(источник|ссылка)\s*:.*$/gim, '');
+
+  var message = String(b?.message || '');
+  var cardAsked = /карт[ауы] дня|таро|аркан|расклад/i.test(message);
+  var dailyTarot = String(b?.dailyTarot || '').trim();
+  var dailyRune = String(b?.dailyRune || '').trim();
+  var sourcePatterns = [
+    /источник/i,
+    /ссылк/i,
+    /литератур/i,
+    /на сайт/i,
+    /перейд/i,
+    /читай/i,
+    /согласно/i,
+    /по данным/i
+  ];
+  var cardSourcePatterns = [
+    /по карт[еы] дня/i,
+    /исходя из карт[ыи] дня/i,
+    /карт[ауы] дня показывает/i,
+    /главная карт[ауы] дня/i,
+    /в карт[еы] дня видно/i
+  ];
+
+  var cleaned = splitSentences(reply)
+    .filter(function(sentence) {
+      if (sourcePatterns.some(function(pattern) { return pattern.test(sentence); })) return false;
+      if (b?.requestMode === 'oracle' && !cardAsked) {
+        if (cardSourcePatterns.some(function(pattern) { return pattern.test(sentence); })) return false;
+        if (dailyTarot && sentence.toLowerCase().includes(dailyTarot.toLowerCase())) return false;
+        if (dailyRune && sentence.toLowerCase().includes(dailyRune.toLowerCase())) return false;
+        if (/(эта|данная|главная)\s+карт[ауы]|аркана?|рун[аы]/i.test(sentence)) return false;
+      }
+      return true;
+    })
+    .join(' ');
+
+  return cleaned.length > 120 ? cleaned : reply;
 }
 
 function splitSentences(text) {
@@ -250,13 +393,84 @@ function cleanDialogueEnergyReply(text, b) {
   return cleaned.length > 250 ? cleaned : reply;
 }
 
+function cleanBondReply(text, b) {
+  var reply = String(text || '');
+  if (!b || b.requestMode !== 'bond_analysis') return reply;
+
+  return reply
+    .replace(/(Общий рисунок|Что притягивает|Где трение|Как тебя может считывать человек|Как общаться|Чего не делать|Практика на 3 дня)\n([а-яё])/g, function(_match, heading, letter) {
+      return heading + '\n' + letter.toUpperCase();
+    })
+    .replace(/\bтебя тянет друг к другу\b/gi, 'вас тянет друг к другу')
+    .replace(/\bтебя объединяет\b/gi, 'вас объединяет')
+    .replace(/\bтебе обоим\b/gi, 'вам обоим')
+    .replace(/\bкто-то из тебя\b/gi, 'кто-то из вас')
+    .replace(/\bни один из тебя\b/gi, 'никто из вас')
+    .replace(/\bты будете\b/gi, 'ты будешь')
+    .replace(/\bЧастаяManipура\b/gi, 'Манипура')
+    .replace(/\bManipура\b/gi, 'Манипура')
+    .replace(/\bоба партнера\b/gi, 'оба человека')
+    .replace(/\bпартнера молчанием\b/gi, 'человека молчанием')
+    .replace(/\bбез подковок\b/gi, 'без подколов')
+    .replace(/\bваш общий язык\b/gi, 'общий язык пары')
+    .replace(/(^|[^А-Яа-яЁё])Не проверяйте(?=$|[^А-Яа-яЁё])/g, '$1Не проверяй')
+    .replace(/(^|[^А-Яа-яЁё])не проверяйте(?=$|[^А-Яа-яЁё])/g, '$1не проверяй')
+    .replace(/(^|[^А-Яа-яЁё])Не прячьте(?=$|[^А-Яа-яЁё])/g, '$1Не прячь')
+    .replace(/(^|[^А-Яа-яЁё])не прячьте(?=$|[^А-Яа-яЁё])/g, '$1не прячь')
+    .replace(/(^|[^А-Яа-яЁё])Не позволяйте себе(?=$|[^А-Яа-яЁё])/g, '$1Не позволяй себе')
+    .replace(/(^|[^А-Яа-яЁё])не позволяйте себе(?=$|[^А-Яа-яЁё])/g, '$1не позволяй себе')
+    .replace(/(^|[^А-Яа-яЁё])Не игнорируйте(?=$|[^А-Яа-яЁё])/g, '$1Не игнорируй')
+    .replace(/(^|[^А-Яа-яЁё])не игнорируйте(?=$|[^А-Яа-яЁё])/g, '$1не игнорируй')
+    .replace(/(^|[^А-Яа-яЁё])Записывайте(?=$|[^А-Яа-яЁё])/g, '$1Записывай')
+    .replace(/(^|[^А-Яа-яЁё])записывайте(?=$|[^А-Яа-яЁё])/g, '$1записывай')
+    .replace(/(^|[^А-Яа-яЁё])выдавайте(?=$|[^А-Яа-яЁё])/gi, '$1давайте')
+    .replace(/\bзамечаете ли вы\b/gi, 'замечай')
+    .replace(/\bконтрольировать\b/gi, 'контролировать')
+    .replace(/([.!?]\s+)(используй|избегай|записывай|практикуй|говори|признай|давайте|не позволяй|не игнорируй)/g, function(_match, prefix, word) {
+      return prefix + word.charAt(0).toUpperCase() + word.slice(1);
+    });
+}
+
 function ensureNameOpening(text, b) {
   var reply = String(text || '').trim();
   var name = String(b?.userName || '').trim();
   if (!name || reply.toLowerCase().startsWith(name.toLowerCase())) return reply;
 
+  if (/^(Смысл|Сила|Тень|В жизни|Практика|Тип сна|Главный образ|Что видно|Общий рисунок|Аркан|Код|Лунный фон)(?=\s|[:.\n]|$)/i.test(reply)) {
+    return `${name}, смотрю.\n\n${reply}`;
+  }
+
   var lowered = reply.charAt(0).toLowerCase() + reply.slice(1);
   return `${name}, ${lowered}`;
+}
+
+function truncateText(value, maxLen) {
+  var text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLen) return text;
+  var head = Math.floor(maxLen * 0.62);
+  var tail = maxLen - head - 32;
+  return text.slice(0, head).trim() + ' ... [сокращено] ... ' + text.slice(-tail).trim();
+}
+
+function formatEventsForPrompt(events) {
+  var list = Array.isArray(events) ? events : [];
+  if (!list.length) return 'Пока нет записей';
+
+  var limit = 5;
+  var selected = list.slice(-limit);
+  var hidden = Math.max(0, list.length - selected.length);
+  var lines = selected.map(function(e, i) {
+    var n = hidden + i + 1;
+    var date = e && e.date ? e.date : 'без даты';
+    var text = truncateText(e && e.text ? e.text : '', 150);
+    return `${n}. ${date}: ${text}`;
+  });
+
+  if (hidden) {
+    lines.unshift(`Старых записей скрыто: ${hidden}. Ниже последние ${selected.length}.`);
+  }
+
+  return lines.join('\n');
 }
 
 function hasImmediateDanger(message, events) {
@@ -416,6 +630,29 @@ function formatProfileFocus(focus) {
   ].join('\n');
 }
 
+function formatBondProfile(bond) {
+  if (!bond || typeof bond !== 'object') {
+    return 'Связь не рассчитана';
+  }
+
+  const self = bond.self || {};
+  const partner = bond.partner || {};
+  const pair = bond.pairMatrix || {};
+
+  return [
+    `Человек 1: ${self.name || 'не указан'}, дата ${self.birth || 'не указана'}, знак ${self.sign || '—'}, стихия ${self.element || '—'}, число пути ${self.lifePath || '—'}, число имени ${self.destiny || '—'}, руна ${self.rune || '—'}, чакра ${self.chakra || '—'}`,
+    `Человек 2: ${partner.name || 'не указан'}, дата ${partner.birth || 'не указана'}, знак ${partner.sign || '—'}, стихия ${partner.element || '—'}, число пути ${partner.lifePath || '—'}, число имени ${partner.destiny || '—'}, руна ${partner.rune || '—'}, чакра ${partner.chakra || '—'}`,
+    `Индекс связи: ${bond.score || '—'}%`,
+    `Динамика: ${bond.dynamic || '—'}`,
+    `Баланс: ${bond.balance || '—'}`,
+    `Матрица пары, контакт: ${pair.contact || '—'}`,
+    `Матрица пары, отношения: ${pair.relations || '—'}`,
+    `Матрица пары, урок: ${pair.lesson || '—'}`,
+    `Матрица пары, миссия: ${pair.mission || '—'}`,
+    `Практический совет: ${bond.advice || '—'}`
+  ].join('\n');
+}
+
 function formatRuneCode(code) {
   if (!code || typeof code !== 'object') {
     return 'Рунический код не рассчитан';
@@ -481,16 +718,27 @@ function getPromptForMode(mode) {
 Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
 Пиши без нумерованных списков. Формат обязателен: "Общий рисунок", "Твоя энергия", "Энергия собеседника", "Какие чакры включились", "Где перекос", "Как выровнять", "Ответ, который сохранит контакт".`;
   }
+  if (mode === 'bond_analysis') {
+    return `Ты — Велес, оракул связей между людьми. Пользователь рассчитал связь с другим человеком и хочет понять её живой рисунок.
+
+Режим: разбор связи. Используй только блок "Связь пары" и вопрос пользователя. Не говори, что связь обречена или гарантирована. Не обещай любовь, брак, расставание или судьбоносность как факт.
+Не вставляй ссылки, источники, названия сайтов и объяснения, откуда взяты значения. Не называй Луну и внешние школы.
+Можно использовать язык стихий, чисел, арканов матрицы, рун и чакр только как внутренние опоры. В ответе называй их умеренно и только там, где это помогает понять пару, без каши из систем.
+Главное: объясни, что людей притягивает, где возникает трение, как один может неправильно считывать другого, какой стиль общения лучше и чего не делать.
+Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
+Формат ответа обязателен: "Общий рисунок", "Что притягивает", "Где трение", "Как тебя может считывать человек", "Как общаться", "Чего не делать", "Практика на 3 дня". Каждый раздел раскрывай в 2-3 предложения.`;
+  }
   if (mode === 'dream_interpretation') {
     return `Ты — Велес, сонник и толкователь образов. Пользователь описывает сон и хочет понять, что он отражает.
 
 Режим: сонник. Разбирай сон как язык подсознания: образы, эмоции, напряжение, желание, страх, незавершённый внутренний сюжет.
+Сначала определи тип сна и его функцию: бытовой, ретроспективный, перспективный, повторяющийся, трансформационный, обучающий, контактный, хаотический или сон-якорь. Если подходит несколько типов, выбери главный и один дополнительный.
 Не говори, что сон точно предсказывает будущее. Не называй Луну, руны, сфиры, каббалистику, таро, нумерологию, чакры и знак зодиака как отдельные системы.
 Не ссылайся на традиции и книги. Не пиши "в сонниках это означает". Давай живое толкование конкретного сна пользователя.
 Если деталей мало, не отказывайся: выдели 2-3 возможных значения и скажи, какие детали стоит вспомнить.
 Не ставь диагнозов. Если в сне есть тяжёлые или тревожные образы, отвечай спокойно: это может быть следом напряжения, усталости или внутреннего конфликта, а не приговором.
 Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
-Формат ответа обязателен: "Главный образ", "Что сон показывает", "Скрытое чувство", "О чём предупреждает", "Что сделать сейчас". Каждый раздел раскрывай в 2-4 предложения.`;
+Формат ответа обязателен: "Тип сна", "Главный образ", "Что сон показывает", "Скрытое чувство", "О чём предупреждает", "Что сделать сейчас". Каждый раздел раскрывай в 2-4 предложения.`;
   }
   if (mode === 'matrix_arcana') {
     return `Ты — Велес, оракул. Разбери только выбранный аркан из "Фокус матрицы". Не фатально — это задача, не приговор. Формат: "Аркан", "Свет", "Тень", "Как проявляется", "Практика на 3 дня". Русский, кириллица, без эмодзи.`;
@@ -507,6 +755,7 @@ function getMaxTokensForMode(mode) {
   if (mode === 'profile_item') return 950;
   if (mode === 'dialogue_analysis') return 1100;
   if (mode === 'dialogue_energy') return 1100;
+  if (mode === 'bond_analysis') return 1200;
   if (mode === 'dream_interpretation') return 1100;
   if (mode === 'matrix_arcana') return 900;
   if (mode === 'tarot_spread') return 1000;
@@ -536,10 +785,17 @@ function pickKeywordItems(items, text, limit) {
 function formatDreamKnowledge(b) {
   if (!DREAM_SYMBOLS_KNOWLEDGE) return '';
   const symbols = pickKeywordItems(DREAM_SYMBOLS_KNOWLEDGE.symbols, b.message, 5);
+  const types = pickKeywordItems(DREAM_SYMBOLS_KNOWLEDGE.dream_types, b.message, 3);
+  const practices = pickKeywordItems(DREAM_SYMBOLS_KNOWLEDGE.practices, b.message, 3);
   return [
     sectionText('Правила сонника', DREAM_SYMBOLS_KNOWLEDGE.rules),
+    sectionText('Оси чтения сна', DREAM_SYMBOLS_KNOWLEDGE.reading_axes),
+    'Типы сна',
+    types.map((t) => `- ${t.name}: функция — ${t.function}; сигнал — ${t.signal}; вопрос — ${t.question}.`).join('\n'),
     'Символы сна',
-    symbols.map((s) => `- ${s.name}: смысл — ${s.meaning}; тень — ${s.shadow}; практика — ${s.practice}.`).join('\n')
+    symbols.map((s) => `- ${s.name}: смысл — ${s.meaning}; тень — ${s.shadow}; практика — ${s.practice}.`).join('\n'),
+    'Практики после сна',
+    practices.map((p) => `- ${p.name}: когда — ${p.use_when}; шаги — ${p.steps}.`).join('\n')
   ].filter(Boolean).join('\n\n');
 }
 
@@ -730,8 +986,8 @@ function selectMonosovKnowledge(b) {
 
   let text = blocks.filter(Boolean).join('\n\n');
   const limit = mode === 'tarot_spread' || mode === 'dream_interpretation'
-    ? 3200
-    : (mode === 'dialogue_analysis' || mode === 'dialogue_energy' ? 2400 : 1800);
+    ? 2200
+    : (mode === 'dialogue_analysis' || mode === 'dialogue_energy' ? 1800 : 1400);
   if (text.length > limit) text = text.substring(0, limit);
   return text || '';
 }
@@ -758,7 +1014,9 @@ app.post('/api/oracle', async (req, res) => {
                 ? 'сонник'
                 : (b.requestMode === 'rune_code'
                   ? 'рунический код'
-                  : (b.requestMode === 'moon' ? 'прямой лунный запрос' : 'обычный оракул')))))));
+                  : (b.requestMode === 'bond_analysis'
+                    ? 'разбор связи'
+                    : (b.requestMode === 'moon' ? 'прямой лунный запрос' : 'обычный оракул'))))))));
 
     const baseUserData = [
       `Имя: ${b.userName}`,
@@ -830,6 +1088,14 @@ app.post('/api/oracle', async (req, res) => {
         ]).join('\n');
       }
 
+      if (b.requestMode === 'bond_analysis') {
+        return baseUserData.concat([
+          ``,
+          `--- СВЯЗЬ ПАРЫ ---`,
+          `${formatBondProfile(b.bondProfile)}`
+        ]).join('\n');
+      }
+
       if (b.requestMode === 'dream_interpretation') {
         return baseUserData.concat([
           ``,
@@ -850,9 +1116,7 @@ app.post('/api/oracle', async (req, res) => {
       ]).join('\n');
     })();
 
-    const eventsText = b.events && b.events.length > 0
-      ? b.events.map((e, i) => `${i + 1}. ${e.date}: ${e.text}`).join('\n')
-      : 'Пока нет записей';
+    const eventsText = formatEventsForPrompt(b.events);
 
     const mentalHealthSignals = detectMentalHealthSignals(b.message, b.events);
     const bookKnowledgeText = selectMonosovKnowledge(b);
@@ -863,17 +1127,21 @@ app.post('/api/oracle', async (req, res) => {
     if (mentalHealthSignals.includes('Уровень внимания')) parts.push(`\n=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
     const systemText = parts.join('');
 
+    const compactMessage = truncateText(b.message, 1800);
     const userMessage = (function() {
       if (b.requestMode === 'dialogue_analysis') {
-        return `Меня зовут ${b.userName}. Разбери это сообщение или диалог практично, без эзотерики на поверхности: ${b.message}`;
+        return `Меня зовут ${b.userName}. Разбери это сообщение или диалог практично, без эзотерики на поверхности: ${compactMessage}`;
       }
       if (b.requestMode === 'dialogue_energy') {
-        return `Меня зовут ${b.userName}. Разбери энергии и чакры в этом сообщении или диалоге: ${b.message}`;
+        return `Меня зовут ${b.userName}. Разбери энергии и чакры в этом сообщении или диалоге: ${compactMessage}`;
       }
       if (b.requestMode === 'dream_interpretation') {
-        return `Меня зовут ${b.userName}. Растолкуй этот сон подробно и понятно: ${b.message}`;
+        return `Меня зовут ${b.userName}. Растолкуй этот сон подробно и понятно: ${compactMessage}`;
       }
-      return `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${b.message}`;
+      if (b.requestMode === 'bond_analysis') {
+        return `Меня зовут ${b.userName}. Разбери связь пары подробно и практично: ${compactMessage}`;
+      }
+      return `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${compactMessage}`;
     })();
 
     const groqBody = JSON.stringify({
@@ -942,7 +1210,8 @@ app.post('/api/oracle', async (req, res) => {
       rawReply = rawReply.replace(/вернись\s+с\s+(точными\s+)?данными[^.]*\./gi, '');
       rawReply = rawReply.replace(/пустот[а-яё]*\s+запроса[^.]*\./gi, '');
     }
-    const reply = polishReply(ensureNameOpening(cleanDialogueEnergyReply(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b), b));
+    const cleanedReply = cleanExternalReferencesReply(cleanGrammarReply(ensureNameOpening(cleanBondReply(cleanDialogueEnergyReply(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b), b), b)), b);
+    const reply = polishReply(cleanGrammarReply(ensureNameOpening(cleanedReply, b)));
     console.log('Groq reply:', reply);
 
     res.json({ reply });
@@ -953,7 +1222,7 @@ app.post('/api/oracle', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('');
   console.log('  ✦ Велес запущен: http://localhost:' + PORT);
   console.log('');
@@ -961,4 +1230,9 @@ app.listen(PORT, () => {
     console.log('  ⚠ GROQ_API_KEY не задан! Добавь в .env файл.');
     console.log('');
   }
+});
+
+server.on('error', (err) => {
+  console.error('Server listen error:', err);
+  process.exitCode = 1;
 });

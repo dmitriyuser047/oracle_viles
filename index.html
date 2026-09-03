@@ -487,8 +487,8 @@
   .stat-value.accent { color: #c4b0f0; }
 
   /* Bonds */
-  .bonds-content { flex: 1; padding: 0 16px; overflow-y: auto; }
-  .bond-empty { text-align: center; padding: 60px 20px; }
+  .bonds-content { flex: 1; padding: 0 16px 96px; overflow-y: auto; }
+  .bond-empty { text-align: center; padding: 22px 12px 18px; }
   .bond-empty-icon {
     width: 80px; height: 80px; border-radius: 50%;
     background: rgba(120,80,220,0.06);
@@ -497,14 +497,61 @@
     margin: 0 auto 20px;
   }
   .bond-empty p { font-size: 14.5px; color: #6a5a9a; line-height: 1.65; margin-bottom: 24px; }
+  .bond-form {
+    display: grid; gap: 12px; margin: 4px 0 16px;
+    padding: 14px; border-radius: 8px;
+    background: rgba(255,255,255,0.035);
+    border: 0.5px solid rgba(120,80,220,0.18);
+  }
+  .bond-field label {
+    display: block; margin-bottom: 7px;
+    color: #7b6baa; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  .bond-field input {
+    width: 100%; padding: 13px 14px;
+    background: rgba(8,6,18,0.55);
+    border: 0.5px solid rgba(120,80,220,0.2);
+    border-radius: 8px; color: #e8e4f0; font-family: inherit; font-size: 15px;
+    outline: none;
+  }
+  .bond-field input:focus { border-color: rgba(160,125,240,0.65); }
+  .bond-actions { display: grid; grid-template-columns: 1fr 44px; gap: 10px; align-items: center; }
+  .bond-secondary-btn {
+    width: 44px; height: 44px; border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(120,80,220,0.22);
+    color: #c4b0f0; cursor: pointer; font-family: inherit; font-size: 18px;
+  }
+  .bond-card {
+    margin-top: 14px; padding: 15px;
+    border-radius: 8px;
+    background: rgba(18,14,36,0.82);
+    border: 0.5px solid rgba(120,80,220,0.24);
+  }
+  .bond-card-title { color: #e8e4f0; font-size: 17px; font-weight: 650; margin-bottom: 6px; }
+  .bond-card-sub { color: #8f82bd; font-size: 12.5px; line-height: 1.45; margin-bottom: 13px; }
+  .bond-meter { height: 7px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; margin: 8px 0 12px; }
+  .bond-meter-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #7b5fd0, #88d8b8); }
+  .bond-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+  .bond-chip {
+    padding: 9px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.035);
+    border: 0.5px solid rgba(120,80,220,0.14);
+    min-width: 0;
+  }
+  .bond-chip span { display:block; color:#6a5a9a; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .bond-chip strong { display:block; color:#c4b0f0; font-size:13px; line-height:1.25; font-weight:600; overflow-wrap:anywhere; }
+  .bond-note { color:#9a8cc4; font-size:13px; line-height:1.55; margin-top:10px; }
+  .bond-result-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
   .invite-btn {
     padding: 15px 36px;
     background: linear-gradient(145deg, #7b5fd0, #5a3fa8);
-    border: none; border-radius: 14px;
+    border: none; border-radius: 8px;
     color: #f0ecf8; font-size: 15px; font-weight: 600;
     cursor: pointer; font-family: inherit;
     transition: all 0.2s; letter-spacing: 0.3px;
   }
+  .invite-btn.compact { padding: 13px 14px; font-size: 14px; width: 100%; }
   .invite-btn:active { transform: scale(0.96); }
   .invite-btn:hover { box-shadow: 0 6px 24px rgba(120,80,220,0.4); }
 
@@ -665,7 +712,7 @@
   <!-- СВЯЗИ -->
   <div class="screen" id="screen-bonds">
     <div class="screen-title">Связи</div>
-    <div class="bonds-content">
+    <div class="bonds-content" id="bondsContent">
       <div class="bond-empty">
         <div class="bond-empty-icon">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
@@ -675,9 +722,23 @@
             <path d="M5 30Q5 22 12 22Q15 22 18 24Q21 22 24 22Q31 22 31 30" stroke="#7b6baa" stroke-width="0.7" fill="none"/>
           </svg>
         </div>
-        <p>Оракул видит нити между людьми.<br>Позови близкого человека — я раскрою, что вас связывает.</p>
-        <button class="invite-btn" onclick="shareLink()">Пригласить</button>
+        <p>Оракул видит нити между людьми.<br>Добавь человека, и Велес разберёт вашу связь.</p>
       </div>
+      <div class="bond-form">
+        <div class="bond-field">
+          <label for="bondNameInput">Имя человека</label>
+          <input type="text" id="bondNameInput" placeholder="Например, Анна">
+        </div>
+        <div class="bond-field">
+          <label for="bondBirthInput">Дата рождения</label>
+          <input type="date" id="bondBirthInput" style="color-scheme: dark;">
+        </div>
+        <div class="bond-actions">
+          <button class="invite-btn compact" onclick="calculateBond()">Рассчитать связь</button>
+          <button class="bond-secondary-btn" onclick="shareLink()" title="Поделиться ссылкой">↗</button>
+        </div>
+      </div>
+      <div id="bondResult"></div>
     </div>
   </div>
 
@@ -717,6 +778,7 @@ let userSignIdx = 0;
 let events = [];
 let userBirthValue = '';
 let chatHistories = {};
+let bondProfile = null;
 
 function createEmptyChats() {
   return {
@@ -736,6 +798,7 @@ function saveToStorage() {
       name: userName,
       birth: userBirthValue,
       chats: chatHistories,
+      bond: bondProfile,
       events: events.map(function(e) { return { text: e.text, ts: e.date.getTime() }; })
     }));
   } catch(e) {}
@@ -752,6 +815,7 @@ function loadFromStorage() {
         events = data.events.map(function(e) { return { text: e.text, date: new Date(e.ts) }; });
       }
       chatHistories = Object.assign(createEmptyChats(), data.chats || {});
+      bondProfile = data.bond || null;
       return true;
     }
   } catch(e) {}
@@ -767,10 +831,12 @@ function clearStorage() {
   events = [];
   userBirthValue = '';
   chatHistories = createEmptyChats();
+  bondProfile = null;
   document.getElementById('screen-profile').classList.remove('active');
   document.getElementById('screen-oracle').classList.remove('active');
   document.getElementById('screen-diary').classList.remove('active');
   document.getElementById('screen-diary-detail').classList.remove('active');
+  document.getElementById('screen-bonds').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   document.getElementById('mainNav').style.display = 'none';
   document.getElementById('chatArea').innerHTML = '';
@@ -1332,6 +1398,148 @@ function formatOracleInsights(engine) {
   }).join('\n');
 }
 
+function buildPersonProfile(name, birthValue) {
+  var date = new Date(birthValue);
+  var day = date.getDate();
+  var month = date.getMonth() + 1;
+  var signIdx = getZodiac(month, day);
+  var lp = lifePathNumber(birthValue);
+  var mx = calcMatrix(day, month, date.getFullYear());
+  var br = birthRune(birthValue);
+  var chakra = birthChakra(birthValue);
+  return {
+    name: String(name || 'Человек').trim(),
+    birth: birthValue,
+    day: day,
+    month: month,
+    year: date.getFullYear(),
+    signIdx: signIdx,
+    sign: signsRu[signIdx],
+    element: elements[signIdx],
+    planet: planets[signIdx],
+    lifePath: lp,
+    destiny: destinyNumber(name || ''),
+    soul: soulNumber(name || ''),
+    rune: br.symbol + ' ' + br.name,
+    chakra: chakra.name,
+    matrix: mx
+  };
+}
+
+function calculateBondScore(a, b) {
+  var score = 42;
+  if (a.element === b.element) score += 18;
+  if ((a.element === 'Огонь' && b.element === 'Воздух') || (a.element === 'Воздух' && b.element === 'Огонь')) score += 12;
+  if ((a.element === 'Земля' && b.element === 'Вода') || (a.element === 'Вода' && b.element === 'Земля')) score += 12;
+  if (Math.abs(a.lifePath - b.lifePath) <= 1) score += 9;
+  if (a.destiny === b.destiny) score += 8;
+  if (a.matrix.relations.num === b.matrix.relations.num) score += 10;
+  if (a.matrix.connection.num === b.matrix.connection.num) score += 8;
+  score -= Math.min(14, Math.abs(a.matrix.tail.num - b.matrix.tail.num));
+  return Math.max(18, Math.min(96, score));
+}
+
+function getBondDynamic(a, b, score) {
+  if (score >= 78) return 'сильное притяжение, быстрое узнавание и высокая чувствительность друг к другу';
+  if (score >= 62) return 'рабочая связь: много точек контакта, но важны ясные правила общения';
+  if (score >= 46) return 'неровная связь: интерес есть, но ритмы и ожидания могут расходиться';
+  return 'сложная связь: она может чему-то учить, но требует спокойных границ и проверки фактами';
+}
+
+function buildBondProfile(partnerName, partnerBirth) {
+  var self = buildPersonProfile(userName, userBirthValue);
+  var partner = buildPersonProfile(partnerName, partnerBirth);
+  var score = calculateBondScore(self, partner);
+  var pairMatrix = {
+    contact: matrixReduce(self.matrix.connection.num + partner.matrix.connection.num),
+    relations: matrixReduce(self.matrix.relations.num + partner.matrix.relations.num),
+    lesson: matrixReduce(self.matrix.tail.num + partner.matrix.tail.num),
+    mission: matrixReduce(self.matrix.missionGeneral.num + partner.matrix.missionGeneral.num)
+  };
+  return {
+    createdAt: Date.now(),
+    self: self,
+    partner: partner,
+    score: score,
+    dynamic: getBondDynamic(self, partner, score),
+    pairMatrix: {
+      contact: pairMatrix.contact + ' ' + arcanEnergies[pairMatrix.contact],
+      relations: pairMatrix.relations + ' ' + arcanEnergies[pairMatrix.relations],
+      lesson: pairMatrix.lesson + ' ' + arcanEnergies[pairMatrix.lesson],
+      mission: pairMatrix.mission + ' ' + arcanEnergies[pairMatrix.mission]
+    },
+    balance: self.element === partner.element
+      ? 'одна стихия усиливает узнавание, но может делать реакции похожими'
+      : self.element + ' встречает ' + partner.element + ': связь требует перевода языка одного человека на язык другого',
+    advice: score >= 62
+      ? 'сохраняйте прямой разговор и не проверяйте связь молчанием'
+      : 'не торопи сближение: сначала смотри на поступки, ритм ответа и способность держать договорённости'
+  };
+}
+
+function renderBond() {
+  var result = document.getElementById('bondResult');
+  if (!result) return;
+  var nameInput = document.getElementById('bondNameInput');
+  var birthInput = document.getElementById('bondBirthInput');
+
+  if (!bondProfile) {
+    result.innerHTML = '';
+    return;
+  }
+
+  var b = bondProfile;
+  if (nameInput && !nameInput.value) nameInput.value = b.partner.name || '';
+  if (birthInput && !birthInput.value) birthInput.value = b.partner.birth || '';
+  var width = Math.max(18, Math.min(96, b.score));
+  result.innerHTML =
+    '<div class="bond-card">' +
+      '<div class="bond-card-title">' + escapeHtml(userName) + ' и ' + escapeHtml(b.partner.name) + '</div>' +
+      '<div class="bond-card-sub">' + escapeHtml(b.dynamic) + '</div>' +
+      '<div class="bond-meter"><div class="bond-meter-fill" style="width:' + width + '%"></div></div>' +
+      '<div class="bond-grid">' +
+        '<div class="bond-chip"><span>Ты</span><strong>' + escapeHtml(b.self.sign) + ' • ' + escapeHtml(b.self.element) + '</strong></div>' +
+        '<div class="bond-chip"><span>Человек</span><strong>' + escapeHtml(b.partner.sign) + ' • ' + escapeHtml(b.partner.element) + '</strong></div>' +
+        '<div class="bond-chip"><span>Индекс</span><strong>' + b.score + '%</strong></div>' +
+        '<div class="bond-chip"><span>Контакт</span><strong>' + escapeHtml(b.pairMatrix.contact.split(' — ')[0]) + '</strong></div>' +
+        '<div class="bond-chip"><span>Отношения</span><strong>' + escapeHtml(b.pairMatrix.relations.split(' — ')[0]) + '</strong></div>' +
+        '<div class="bond-chip"><span>Урок</span><strong>' + escapeHtml(b.pairMatrix.lesson.split(' — ')[0]) + '</strong></div>' +
+      '</div>' +
+      '<div class="bond-note">' + escapeHtml(b.balance) + '. ' + escapeHtml(b.advice) + '.</div>' +
+      '<div class="bond-result-actions">' +
+        '<button class="invite-btn compact" onclick="requestBondInsight()">Разобрать</button>' +
+        '<button class="invite-btn compact" onclick="clearBond()">Очистить</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function calculateBond() {
+  var nameInput = document.getElementById('bondNameInput');
+  var birthInput = document.getElementById('bondBirthInput');
+  var name = nameInput.value.trim() || 'Человек';
+  var birth = birthInput.value;
+  if (!birth) {
+    birthInput.style.borderColor = 'rgba(220,80,80,0.55)';
+    birthInput.style.background = 'rgba(220,80,80,0.06)';
+    return;
+  }
+  birthInput.style.borderColor = 'rgba(120,80,220,0.2)';
+  birthInput.style.background = 'rgba(8,6,18,0.55)';
+  bondProfile = buildBondProfile(name, birth);
+  saveToStorage();
+  renderBond();
+}
+
+function clearBond() {
+  bondProfile = null;
+  var nameInput = document.getElementById('bondNameInput');
+  var birthInput = document.getElementById('bondBirthInput');
+  if (nameInput) nameInput.value = '';
+  if (birthInput) birthInput.value = '';
+  saveToStorage();
+  renderBond();
+}
+
 function oracleText(message) {
   return ([message || ''].concat(events.map(function(e) { return e.text || ''; }))).join(' ').toLowerCase();
 }
@@ -1793,6 +2001,7 @@ function startApp(fromStorage) {
   document.getElementById('userSign').textContent = userName + ' — ' + userSign;
 
   buildProfile(userSignIdx, bv);
+  renderBond();
   if (events.length > 0) {
     updateDiary();
   } else {
@@ -2327,6 +2536,9 @@ async function askOracle(message, options) {
     if (options && options.profileFocus) {
       ctx.profileFocus = options.profileFocus;
     }
+    if (options && options.bondProfile) {
+      ctx.bondProfile = options.bondProfile;
+    }
 
     var lastErr = null;
     for (var attempt = 0; attempt < 2; attempt++) {
@@ -2408,6 +2620,35 @@ async function requestProfileInsight(section, label, value) {
 
   if (typing.parentNode) chat.removeChild(typing);
   appendChatMessage('oracle', resp, 'AI-оракул • позиция профиля', 'oracle');
+}
+
+async function requestBondInsight() {
+  if (!bondProfile) {
+    switchScreen('bonds');
+    showToast('Сначала рассчитай связь');
+    return;
+  }
+
+  var message = 'Разбери связь между ' + userName + ' и ' + bondProfile.partner.name;
+  switchScreen('oracle');
+  setOracleMode('oracle');
+
+  var chat = document.getElementById('chatArea');
+  appendChatMessage('user', 'Связь • ' + bondProfile.partner.name, '', 'oracle');
+
+  var typing = document.createElement('div');
+  typing.className = 'msg';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+
+  var resp = await askOracle(message, {
+    requestMode: 'bond_analysis',
+    bondProfile: bondProfile
+  });
+
+  if (typing.parentNode) chat.removeChild(typing);
+  appendChatMessage('oracle', resp, 'AI-оракул • связь', 'oracle');
 }
 
 function addOracleMsg(text, meta) {
@@ -2671,6 +2912,7 @@ function switchScreen(name) {
   var toolbar = document.getElementById('diaryToolbar');
   if (toolbar) toolbar.style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
   if (name === 'diary') document.getElementById('diaryDot').style.display = 'none';
+  if (name === 'bonds') renderBond();
 }
 
 document.getElementById('msgInput').addEventListener('keydown', function(e) {
