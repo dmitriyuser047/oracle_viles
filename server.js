@@ -2,42 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-
-const envPath = path.join(__dirname, '.env');
-if (fs.existsSync(envPath)) {
-fs.readFileSync(envPath, 'utf8').split('\n').forEach(function(line) {
-    var match = line.trim().match(/^([^=]+)=(.*)$/);
-    if (match && match[1]) process.env[match[1].trim()] = match[2].trim();
-  });
-}
+const config = require('./src/config');
+const { requestAI, primaryModelName } = require('./src/ai/providers');
+const { estimateUsageCost, recordAiUsage, usageStatsHandler } = require('./src/ai/usage');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
-
-const AI_PROVIDER = (process.env.AI_PROVIDER || 'groq').toLowerCase();
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
-const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01';
-const KNOWLEDGE_DIR = path.join(__dirname, 'knowledge');
-const DATA_DIR = path.join(__dirname, 'data');
-const AI_USAGE_LOG_PATH = process.env.AI_USAGE_LOG_PATH || path.join(DATA_DIR, 'ai-usage.jsonl');
-const USAGE_STATS_TOKEN = process.env.USAGE_STATS_TOKEN || '';
-
-const ANTHROPIC_PRICES_PER_MTOK = [
-  { pattern: /haiku/i, input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.10 },
-  { pattern: /sonnet/i, input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.30 },
-  { pattern: /opus/i, input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.50 }
-];
+app.use(express.static(config.STATIC_DIR));
 
 function loadKnowledgeFile(fileName) {
   try {
-    return JSON.parse(fs.readFileSync(path.join(KNOWLEDGE_DIR, fileName), 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(config.KNOWLEDGE_DIR, fileName), 'utf8'));
   } catch (err) {
     console.warn('Knowledge file skipped:', fileName, err.message);
     return null;
@@ -57,186 +33,10 @@ app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'oracle-viles' });
 });
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
+app.get('/api/usage-stats', usageStatsHandler);
 
-function readJsonLines(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) return [];
-    return fs.readFileSync(filePath, 'utf8')
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => {
-        try {
-          return JSON.parse(line);
-        } catch (_err) {
-          return null;
-        }
-      })
-      .filter(Boolean);
-  } catch (err) {
-    console.warn('Usage log read failed:', err.message);
-    return [];
-  }
-}
 
-function getAnthropicPrice(model) {
-  return ANTHROPIC_PRICES_PER_MTOK.find((item) => item.pattern.test(model || '')) || ANTHROPIC_PRICES_PER_MTOK[0];
-}
-
-function roundMoney(value) {
-  return Math.round((Number(value) || 0) * 1000000) / 1000000;
-}
-
-function normalizeUsage(provider, model, data) {
-  const rawUsage = data?.usage || {};
-  if (provider === 'anthropic') {
-    return {
-      provider,
-      model,
-      inputTokens: Number(rawUsage.input_tokens || 0),
-      outputTokens: Number(rawUsage.output_tokens || 0),
-      cacheWriteTokens: Number(rawUsage.cache_creation_input_tokens || 0),
-      cacheReadTokens: Number(rawUsage.cache_read_input_tokens || 0),
-      totalTokens: Number(rawUsage.input_tokens || 0)
-        + Number(rawUsage.output_tokens || 0)
-        + Number(rawUsage.cache_creation_input_tokens || 0)
-        + Number(rawUsage.cache_read_input_tokens || 0),
-      raw: rawUsage
-    };
-  }
-
-  return {
-    provider,
-    model,
-    inputTokens: Number(rawUsage.prompt_tokens || 0),
-    outputTokens: Number(rawUsage.completion_tokens || 0),
-    cacheWriteTokens: 0,
-    cacheReadTokens: 0,
-    totalTokens: Number(rawUsage.total_tokens || 0),
-    raw: rawUsage
-  };
-}
-
-function estimateUsageCost(usage) {
-  if (!usage || usage.provider !== 'anthropic') return null;
-  const price = getAnthropicPrice(usage.model);
-  return roundMoney(
-    (usage.inputTokens / 1000000) * price.input
-    + (usage.outputTokens / 1000000) * price.output
-    + (usage.cacheWriteTokens / 1000000) * price.cacheWrite
-    + (usage.cacheReadTokens / 1000000) * price.cacheRead
-  );
-}
-
-function recordAiUsage(entry) {
-  try {
-    ensureDataDir();
-    fs.appendFileSync(AI_USAGE_LOG_PATH, JSON.stringify(entry) + '\n', 'utf8');
-  } catch (err) {
-    console.warn('Usage log write failed:', err.message);
-  }
-}
-
-function isLocalRequest(req) {
-  const ip = req.ip || req.socket?.remoteAddress || '';
-  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-}
-
-function canReadUsageStats(req) {
-  if (isLocalRequest(req)) return true;
-  if (!USAGE_STATS_TOKEN) return false;
-  return req.get('x-usage-token') === USAGE_STATS_TOKEN || req.query.token === USAGE_STATS_TOKEN;
-}
-
-function emptyUsageSummary() {
-  return {
-    requests: 0,
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadTokens: 0,
-    cacheWriteTokens: 0,
-    totalTokens: 0,
-    estimatedCostUsd: 0
-  };
-}
-
-function addUsage(summary, entry) {
-  const usage = entry.usage || {};
-  summary.requests += 1;
-  summary.inputTokens += Number(usage.inputTokens || 0);
-  summary.outputTokens += Number(usage.outputTokens || 0);
-  summary.cacheReadTokens += Number(usage.cacheReadTokens || 0);
-  summary.cacheWriteTokens += Number(usage.cacheWriteTokens || 0);
-  summary.totalTokens += Number(usage.totalTokens || 0);
-  summary.estimatedCostUsd = roundMoney(summary.estimatedCostUsd + Number(entry.estimatedCostUsd || 0));
-}
-
-app.get('/api/usage-stats', (req, res) => {
-  if (!canReadUsageStats(req)) {
-    return res.status(403).json({ error: 'Статистика доступна только локально на сервере или по токену.' });
-  }
-
-  const now = new Date();
-  const todayKey = now.toISOString().slice(0, 10);
-  const monthKey = now.toISOString().slice(0, 7);
-  const entries = readJsonLines(AI_USAGE_LOG_PATH);
-  const summary = {
-    total: emptyUsageSummary(),
-    today: emptyUsageSummary(),
-    month: emptyUsageSummary(),
-    byMode: {},
-    recent: entries.slice(-20).reverse()
-  };
-
-  entries.forEach((entry) => {
-    const date = String(entry.createdAt || '');
-    addUsage(summary.total, entry);
-    if (date.startsWith(todayKey)) addUsage(summary.today, entry);
-    if (date.startsWith(monthKey)) addUsage(summary.month, entry);
-
-    const mode = entry.requestMode || 'unknown';
-    if (!summary.byMode[mode]) summary.byMode[mode] = emptyUsageSummary();
-    addUsage(summary.byMode[mode], entry);
-  });
-
-  res.json(summary);
-});
-
-const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский оракул. Говоришь образно, мистично и по делу.
-
-ОБЯЗАТЕЛЬНО: начни ответ с имени человека из блока КАРТА. Используй ТОЛЬКО данные оттуда. Не выдумывай и не подменяй данные.
-ЗАПРЕЩЕНО: говорить "имя скрыто" или "имя неизвестно", выдумывать карты/руны/знаки которых нет в КАРТЕ, использовать китайские иероглифы.
-Не объясняй, откуда взяты значения, и не называй внешние школы. Знания должны звучать как цельный голос Велеса, а не как пересказ справочника.
-Не вставляй ссылки, URL, названия сайтов, строки "источник", "ссылка", "литература" и похожие отсылки. Ответ должен выглядеть как собственный разбор Велеса.
-
-Правила:
-- Выбери 1 главный символ из КАРТЫ. Поддерживающий слой используй только для смысла и тона, не называй его отдельной системой без прямого вопроса.
-- В обычном режиме не говори "по карте дня", "исходя из карты дня" или "карта дня показывает", если человек прямо не спросил о карте. Карта дня нужна как внутренняя опора, а не как видимое объяснение всего ответа.
-- Не смешивай каббалистику и руны. Не называй Луну, если человек прямо не спросил про Луну, лунный день, фазу, новолуние или полнолуние.
-- Психологию используй скрыто: замечай страх, контроль, избегание, повтор роли, потребность в опоре, но не называй теории.
-- Не отвечай односложно. Даже на простой вопрос дай ощущение анализа: что видно в ситуации, почему это могло сложиться, где ресурс человека, где ловушка и какой следующий шаг.
-- Не повторяй одну мысль разными словами. Если смысл уже сказан, развивай его новым наблюдением или действием.
-- Не ограничивайся советом. Сначала покажи скрытый узор ситуации, затем уже дай действие.
-- Не ставь диагнозы и не называй человека больным. Если нет прямой угрозы вреда себе или другим, отвечай мягко: "не вижу подтверждения этому в карте и хронике", "проверь факты", "не принимай решение из страха".
-- Не спорь с верой человека и не разоблачай мистику. Возвращай выбор, а не приговор.
-- Следи за грамматикой: согласуй род, число и падежи; не смешивай "ты" и "вы"; не используй машинные фразы.
-- Не используй формы с вариантами рода вроде "сделал(а)", "готов(а)", "уверенным(ой)". Перефразируй нейтрально: "было чувство", "получилось", "есть готовность".
-- Только русский, кириллица, без эмодзи. Обращайся по имени на "ты".
-
-/no_think
-Формат обычного ответа: 10-14 предложений, 2-4 коротких абзаца.
-1. Имя + один главный символ из КАРТЫ.
-2. Что происходит в ситуации через этот символ.
-3. Какой скрытый сценарий или внутреннее напряжение может стоять за вопросом.
-4. Сила человека и как её использовать.
-5. Тень, риск или самообман.
-6. Чего не делать.
-7. Конкретный совет с действием и сроком.
-8. Фраза силы или микро-обряд.`;
+const { SYSTEM_PROMPT, getPromptForMode, getMaxTokensForMode } = require('./src/oracle/prompts');
 
 function polishReply(text) {
   return String(text || '')
@@ -879,233 +679,6 @@ function formatRuneCode(code) {
   ].join('\n');
 }
 
-function getPromptForMode(mode) {
-  if (mode === 'moon') {
-    return `Ты — Велес, славянский оракул. Отвечай про Луну только потому, что пользователь прямо спросил.
-
-Режим: прямой лунный запрос. Используй только блок "Луна по прямому запросу" и не подключай руны, сфиры, каббалистику, чакры, таро, матрицу и нумерологию как названные системы.
-Говори символически и практически: что означает фаза, какой настрой дня, чего избегать и какой мягкий шаг сделать.
-Пиши связно и аккуратно: если даёшь пункты, каждый пункт должен быть на отдельной строке.
-Не делай фатальных прогнозов и не обещай мистических гарантий.
-Формат: "Лунный фон", "Смысл", "Чего не делать", "Практика".`;
-  }
-
-  if (mode === 'rune_code') {
-    return `Ты — Велес, славянский оракул, работающий с рунами через образ Иггдрасиля.
-
-Режим: составление рунического кода. Используй только блок "Рунический код" и рунические опоры ответа. Не добавляй каббалистику, сфиры, чакры, Луну, таро, нумерологию и знак зодиака как названные системы.
-Код должен звучать как рабочая оракульная сборка по данным профиля, а не как жёсткая догма.
-Не начинай ответ с объяснения, что такое руны или как устроена модель; сразу раскрывай код человека.
-Не объясняй, откуда взяты значения, и не называй внешние школы.
-Положение Луны, фазу Луны и лунный день не называй никогда.
-Структура ответа обязательна: "Код", "Руна судьбы", "Руна личности", "Руна результата", "Руна дня", "Как это собрать в действие". В каждом разделе дай 2-4 предложения.
-В финале дай один практический шаг на ближайшие 24 часа и одну короткую фразу силы.`;
-  }
-  if (mode === 'profile_item') {
-    return `Ты — Велес, славянский оракул. Отвечай мистично, образно и по делу, но без каши из разных систем.
-
-Режим: разбор одной позиции профиля. Раскрывай только выбранную строку из блока "Фокус профиля": раздел, позицию и значение. Не пересказывай весь профиль.
-Выбери язык по разделу: натальная карта — астрология; нумерология — числа; таро — карта; каббалистика — сфира; руны — Иггдрасиль; тотем — животное; чакры — энергия тела; матрица — аркан.
-Если раздел "Руны", называй только выбранную руну и образ Иггдрасиля: корни, ствол, ветви, дорога, знак. Не упоминай сфиры, каббалистику, чакры, Луну, таро, числа и знак зодиака.
-Не объясняй, откуда взяты значения, и не называй внешние школы.
-Положение Луны, фазу Луны и лунный день не называй никогда.
-Не ставь психиатрических диагнозов. Если в вопросе нет прямой угрозы вреда, отвечай мягко: "не вижу подтверждения этому в карте и хронике", "проверь факты", "не принимай решение из страха". При прямой угрозе вреда себе или другим спокойно верни к безопасности.
-Формат ответа обязателен: начни с отдельной строки "Смысл", затем "Сила", "Тень", "В жизни", "Практика". Каждый раздел раскрывай в 2-3 предложения. Без списков всех систем и без лишних символических слоев.`;
-  }
-  if (mode === 'dialogue_analysis') {
-    return `Ты — Велес, мудрый разборщик общения. Пользователь вставляет сообщение или диалог и хочет понять, как ответить.
-
-Режим: практический разбор переписки. Эзотерику, профиль, чакры, руны, карты и числа используй только скрыто для тона. В ответе не называй эзотерические системы, символы и традиции.
-Не утверждай, что другой человек точно думает или чувствует. Говори вероятностями: "похоже", "может быть", "в тексте видно".
-Не учи манипуляциям, ревности, давлению, наказанию молчанием и унижению. Цель — ясность, достоинство, интерес и границы.
-Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
-Формат: "Что видно", "Скрытый тон", "Риск", "Как лучше ответить", "Варианты". Дай 3-5 готовых вариантов ответа: спокойный, тёплый, уверенный, игривый или с границей.`;
-  }
-  if (mode === 'dialogue_energy') {
-    return `Ты — Велес, оракул энергий диалога. Пользователь вставляет сообщение или диалог и хочет увидеть, какие энергии участвовали в контакте.
-
-Режим: энергии диалога. Здесь можно явно говорить про энергии и чакры. Не подключай руны, сфиры, каббалистику, Луну, таро, нумерологию и знак зодиака как названные системы.
-Не называй тотем и животных в этом режиме. Здесь главный язык — энергия контакта и чакры.
-Разбирай не "кто прав", а движение контакта: где открытость, где защита, где давление, где страх, где желание сближения, где закрытая тема.
-Не ставь диагнозов и не утверждай, что другой человек точно хотел. Говори как о вероятном энергетическом рисунке.
-Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
-Пиши без нумерованных списков. Формат обязателен: "Общий рисунок", "Твоя энергия", "Энергия собеседника", "Какие чакры включились", "Где перекос", "Как выровнять", "Ответ, который сохранит контакт".`;
-  }
-  if (mode === 'bond_analysis') {
-    return `Ты — Велес, оракул связей между людьми. Пользователь рассчитал связь с другим человеком и хочет понять её живой рисунок.
-
-Режим: разбор связи. Используй только блок "Связь пары" и вопрос пользователя. Не говори, что связь обречена или гарантирована. Не обещай любовь, брак, расставание или судьбоносность как факт.
-Не вставляй ссылки, источники, названия сайтов и объяснения, откуда взяты значения. Не называй Луну и внешние школы.
-Можно использовать язык стихий, чисел, арканов матрицы, рун и чакр только как внутренние опоры. В ответе называй их умеренно и только там, где это помогает понять пару, без каши из систем.
-Главное: объясни, что людей притягивает, где возникает трение, как один может неправильно считывать другого, какой стиль общения лучше и чего не делать.
-Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
-Формат ответа обязателен: "Общий рисунок", "Что притягивает", "Где трение", "Как тебя может считывать человек", "Как общаться", "Чего не делать", "Практика на 3 дня". Каждый раздел раскрывай в 2-3 предложения.`;
-  }
-  if (mode === 'dream_interpretation') {
-    return `Ты — Велес, сонник и толкователь образов. Пользователь описывает сон и хочет понять, что он отражает.
-
-Режим: сонник. Разбирай сон как язык подсознания: образы, эмоции, напряжение, желание, страх, незавершённый внутренний сюжет.
-Сначала определи тип сна и его функцию: бытовой, ретроспективный, перспективный, повторяющийся, трансформационный, обучающий, контактный, хаотический или сон-якорь. Если подходит несколько типов, выбери главный и один дополнительный.
-Не говори, что сон точно предсказывает будущее. Не называй Луну, руны, сфиры, каббалистику, таро, нумерологию, чакры и знак зодиака как отдельные системы.
-Не ссылайся на традиции и книги. Не пиши "в сонниках это означает". Давай живое толкование конкретного сна пользователя.
-Если деталей мало, не отказывайся: выдели 2-3 возможных значения и скажи, какие детали стоит вспомнить.
-Не ставь диагнозов. Если в сне есть тяжёлые или тревожные образы, отвечай спокойно: это может быть следом напряжения, усталости или внутреннего конфликта, а не приговором.
-Всегда обращайся к пользователю на "ты", без формы "вы". Без эмодзи.
-Формат ответа обязателен: "Тип сна", "Главный образ", "Что сон показывает", "Скрытое чувство", "О чём предупреждает", "Что сделать сейчас". Каждый раздел раскрывай в 2-4 предложения.`;
-  }
-  if (mode === 'matrix_arcana') {
-    return `Ты — Велес, оракул. Разбери только выбранный аркан из "Фокус матрицы". Не фатально — это задача, не приговор. Формат: "Аркан", "Свет", "Тень", "Как проявляется", "Практика на 3 дня". Русский, кириллица, без эмодзи.`;
-  }
-  if (mode === 'tarot_spread') {
-    return `Ты — Велес, таролог. Колода Райдера-Уэйта. Используй только карты из "Расклад таро". Не добавляй руны, чакры, нумерологию. Структура: вступление, "Корень вопроса", "Скрытая сила и тень", "Ближайший шаг", итог. Русский, кириллица, без эмодзи.`;
-  }
-  return `Режим: обычный оракул. Используй карту, события и только релевантные опоры. Не называй внутренние системы без прямого вопроса. Дай развернутый, но не повторяющийся ответ: узор ситуации, ресурс, риск, чего не делать и конкретный шаг.`;
-}
-
-function getMaxTokensForMode(mode) {
-  if (mode === 'moon') return 1500;
-  if (mode === 'matrix_arcana') return 1500;
-  if (mode === 'profile_item') return 1700;
-  if (mode === 'dialogue_analysis') return 1800;
-  if (mode === 'dialogue_energy') return 1800;
-  if (mode === 'rune_code') return 2000;
-  if (mode === 'tarot_spread') return 2200;
-  if (mode === 'dream_interpretation') return 2500;
-  if (mode === 'bond_analysis') return 2600;
-  return 1600;
-}
-
-function getProviderOrder() {
-  if (AI_PROVIDER === 'anthropic' || AI_PROVIDER === 'claude') {
-    return ['anthropic', 'groq'];
-  }
-  if (AI_PROVIDER === 'groq') {
-    return ['groq', 'anthropic'];
-  }
-  return ['groq', 'anthropic'];
-}
-
-function providerHasKey(provider) {
-  if (provider === 'anthropic') return Boolean(ANTHROPIC_API_KEY);
-  if (provider === 'groq') return Boolean(GROQ_API_KEY);
-  return false;
-}
-
-async function requestGroq(systemText, userMessage, maxTokens) {
-  const body = JSON.stringify({
-    model: GROQ_MODEL,
-    messages: [
-      { role: 'system', content: systemText },
-      { role: 'user', content: userMessage }
-    ],
-    temperature: 0.7,
-    max_tokens: maxTokens
-  });
-
-  const response = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + GROQ_API_KEY
-    },
-    body
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    const error = new Error(err || `Groq API error ${response.status}`);
-    error.status = response.status;
-    throw error;
-  }
-
-  const data = await response.json();
-  return {
-    provider: 'groq',
-    model: GROQ_MODEL,
-    text: data.choices?.[0]?.message?.content || '',
-    usage: normalizeUsage('groq', GROQ_MODEL, data)
-  };
-}
-
-async function requestAnthropic(systemText, userMessage, maxTokens) {
-  const body = JSON.stringify({
-    model: ANTHROPIC_MODEL,
-    system: [
-      {
-        type: 'text',
-        text: systemText,
-        cache_control: { type: 'ephemeral' }
-      }
-    ],
-    messages: [
-      { role: 'user', content: userMessage }
-    ],
-    temperature: 0.7,
-    max_tokens: maxTokens
-  });
-
-  const response = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': ANTHROPIC_VERSION
-    },
-    body
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    const error = new Error(err || `Anthropic API error ${response.status}`);
-    error.status = response.status;
-    throw error;
-  }
-
-  const data = await response.json();
-  return {
-    provider: 'anthropic',
-    model: ANTHROPIC_MODEL,
-    text: (data.content || [])
-      .filter((part) => part && part.type === 'text')
-      .map((part) => part.text || '')
-      .join('\n')
-      .trim(),
-    usage: normalizeUsage('anthropic', ANTHROPIC_MODEL, data)
-  };
-}
-
-async function requestAI(systemText, userMessage, maxTokens) {
-  const providers = getProviderOrder().filter(providerHasKey);
-  if (!providers.length) {
-    const error = new Error('AI ключ не настроен. Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env');
-    error.status = 500;
-    throw error;
-  }
-
-  let lastError = null;
-  for (const provider of providers) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const result = provider === 'anthropic'
-          ? await requestAnthropic(systemText, userMessage, maxTokens)
-          : await requestGroq(systemText, userMessage, maxTokens);
-        if (result.text) return result;
-        throw new Error(provider + ' returned empty reply');
-      } catch (err) {
-        lastError = err;
-        const isRateLimit = err.status === 429;
-        const wait = isRateLimit ? Math.min((attempt + 1) * 2000, 5000) : (attempt + 1) * 1500;
-        console.error(`${provider} error (attempt ${attempt + 1}/3):`, err.message);
-        if (attempt < 2) {
-          await new Promise((resolve) => setTimeout(resolve, wait));
-        }
-      }
-    }
-  }
-
-  throw lastError || new Error('AI не ответил');
-}
-
 function sectionText(title, items) {
   if (!items || !items.length) return '';
   return `${title}\n` + items.map((item) => `- ${item}`).join('\n');
@@ -1340,7 +913,7 @@ app.post('/api/oracle', async (req, res) => {
   try {
     const b = req.body;
 
-    if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
+    if (!config.ANTHROPIC_API_KEY && !config.GROQ_API_KEY) {
       return res.status(500).json({ error: 'AI ключ не настроен. Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env' });
     }
 
@@ -1538,19 +1111,19 @@ app.post('/api/oracle', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = config.PORT;
 const server = app.listen(PORT, () => {
   console.log('');
   console.log('  ✦ Велес запущен: http://localhost:' + PORT);
-  console.log('  AI_PROVIDER=' + AI_PROVIDER + ', primary model=' + (AI_PROVIDER === 'anthropic' || AI_PROVIDER === 'claude' ? ANTHROPIC_MODEL : GROQ_MODEL));
+  console.log('  AI_PROVIDER=' + config.AI_PROVIDER + ', primary model=' + primaryModelName());
   console.log('');
-  if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
+  if (!config.ANTHROPIC_API_KEY && !config.GROQ_API_KEY) {
     console.log('  ⚠ AI ключ не задан! Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env файл.');
     console.log('');
-  } else if ((AI_PROVIDER === 'anthropic' || AI_PROVIDER === 'claude') && !ANTHROPIC_API_KEY) {
+  } else if ((config.AI_PROVIDER === 'anthropic' || config.AI_PROVIDER === 'claude') && !config.ANTHROPIC_API_KEY) {
     console.log('  ⚠ ANTHROPIC_API_KEY не задан, будет использован Groq если доступен.');
     console.log('');
-  } else if (AI_PROVIDER === 'groq' && !GROQ_API_KEY) {
+  } else if (config.AI_PROVIDER === 'groq' && !config.GROQ_API_KEY) {
     console.log('  ⚠ GROQ_API_KEY не задан, будет использован Claude если доступен.');
     console.log('');
   }

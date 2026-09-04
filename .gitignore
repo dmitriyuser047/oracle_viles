@@ -1,6 +1,7 @@
 .env
 node_modules/
 data/
+design-variants/
 npm-debug.log*
 server-local.log
 server-local.err.log
