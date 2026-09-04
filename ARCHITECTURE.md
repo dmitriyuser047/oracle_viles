@@ -30,5 +30,9 @@ JS разделен по зонам ответственности:
 - `src/ai/providers.js` — Claude, Groq, порядок fallback и prompt caching для Claude.
 - `src/ai/usage.js` — нормализация usage, расчет стоимости, журнал токенов и `/api/usage-stats`.
 - `src/oracle/prompts.js` — главный prompt, режимные prompts и лимиты `max_tokens`.
+- `src/oracle/sanitizers.js` — очистка Markdown, внешних ссылок, смешения традиций, лунных вставок и финальная полировка ответа.
+- `src/oracle/prompt-utils.js` — безопасное сжатие событий и памяти чата перед отправкой в AI.
+- `src/oracle/knowledge.js` — выбор релевантных knowledge-блоков без fallback “первые N элементов”.
+- `src/oracle/safety.js` — мягкое распознавание кризисных и тревожных сигналов без диагнозов в ответе.
 
-Следующий безопасный этап — вынести из `server.js` очистку ответов, selection knowledge и сборку payload для `/api/oracle`, не меняя API `/api/oracle`, `/api/usage-stats` и `/health`.
+Следующий безопасный этап — вынести из `server.js` сборку payload для `/api/oracle`, не меняя API `/api/oracle`, `/api/usage-stats` и `/health`.
