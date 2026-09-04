@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Велес — AI Оракул</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23020810'/%3E%3Cellipse cx='32' cy='32' rx='18' ry='10' fill='none' stroke='%239bd9ff' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23d2f0ff'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#050706">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/assets/icon-192.svg">
 <link rel="stylesheet" href="/assets/css/base.css">
 <link rel="stylesheet" href="/assets/css/components.css">
 <link rel="stylesheet" href="/assets/css/theme-midnight.css">
@@ -213,6 +218,11 @@
 <script src="/assets/js/05-profile-render.js"></script>
 <script src="/assets/js/06-chat-oracle.js"></script>
 <script src="/assets/js/07-diary-share-nav.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(function() {});
+}
+</script>
 
 </body>
 </html>

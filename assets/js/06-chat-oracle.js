@@ -219,6 +219,20 @@ function archiveExpiredChats(now, silent, exceptKey) {
   return changed;
 }
 
+function renderMarkdown(text) {
+  var s = escapeHtml(text || '');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  s = s.replace(/^#{3}\s+(.+)$/gm, '<h4 class="md-h">$1</h4>');
+  s = s.replace(/^#{2}\s+(.+)$/gm, '<h3 class="md-h">$1</h3>');
+  s = s.replace(/^#{1}\s+(.+)$/gm, '<h3 class="md-h">$1</h3>');
+  s = s.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>\n?)+/g, function(m) { return '<ul class="md-list">' + m + '</ul>'; });
+  s = s.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
 function renderChatItem(item) {
   if (!item) return '';
   if (item.type === 'user') {
@@ -233,7 +247,7 @@ function renderChatItem(item) {
       '</div>' +
     '</div>';
   }
-  return '<div class="msg"><div class="msg-oracle"><p>' + String(item.text || '').replace(/\n/g,'<br>') + '</p>' +
+  return '<div class="msg"><div class="msg-oracle"><div class="oracle-text">' + renderMarkdown(item.text) + '</div>' +
     (item.meta ? '<div class="meta"><div class="meta-dot"></div>' + escapeHtml(item.meta) + '</div>' : '') +
     '</div></div>';
 }
@@ -439,7 +453,7 @@ async function requestMatrixArcana(label, num, desc) {
 
   var typing = document.createElement('div');
   typing.className = 'msg';
-  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span><span class="typing-label">Велес думает...</span></div></div>';
   chat.appendChild(typing);
   chat.scrollTop = chat.scrollHeight;
 
@@ -466,7 +480,7 @@ async function requestProfileInsight(section, label, value) {
 
   var typing = document.createElement('div');
   typing.className = 'msg';
-  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span><span class="typing-label">Велес думает...</span></div></div>';
   chat.appendChild(typing);
   chat.scrollTop = chat.scrollHeight;
 
@@ -499,7 +513,7 @@ async function requestBondInsight() {
 
   var typing = document.createElement('div');
   typing.className = 'msg';
-  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span><span class="typing-label">Велес думает...</span></div></div>';
   chat.appendChild(typing);
   chat.scrollTop = chat.scrollHeight;
 
@@ -550,7 +564,7 @@ async function sendMessage() {
 
   var typing = document.createElement('div');
   typing.className = 'msg';
-  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span></div></div>';
+  typing.innerHTML = '<div class="msg-oracle"><div class="typing"><span></span><span></span><span></span><span class="typing-label">Велес думает...</span></div></div>';
   chat = document.getElementById('chatArea');
   chat.appendChild(typing);
   chat.scrollTop = chat.scrollHeight;
