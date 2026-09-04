@@ -7,6 +7,8 @@ let userBirthValue = '';
 let chatHistories = {};
 let bondProfile = null;
 let archivedChats = [];
+let oracleDepth = 'detailed';
+let oracleTone = 'practical';
 const CHAT_ARCHIVE_TTL = 2 * 60 * 60 * 1000;
 
 function createEmptyChats() {
@@ -29,6 +31,8 @@ function saveToStorage() {
       chats: chatHistories,
       archivedChats: archivedChats,
       bond: bondProfile,
+      depth: oracleDepth,
+      tone: oracleTone,
       events: events.map(function(e) { return { text: e.text, ts: e.date.getTime() }; })
     }));
   } catch(e) {}
@@ -46,6 +50,8 @@ function loadFromStorage() {
       }
       chatHistories = Object.assign(createEmptyChats(), data.chats || {});
       archivedChats = Array.isArray(data.archivedChats) ? data.archivedChats : [];
+      oracleDepth = data.depth || 'detailed';
+      oracleTone = data.tone || 'practical';
       archiveExpiredChats(Date.now(), true);
       bondProfile = data.bond || null;
       return true;

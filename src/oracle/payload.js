@@ -1,4 +1,4 @@
-const { getPromptForMode } = require('./prompts');
+const { getPromptForMode, getDepthInstruction, getToneInstruction } = require('./prompts');
 const { truncateText, formatEventsForPrompt, formatChatMemoryForPrompt } = require('./prompt-utils');
 const { selectMonosovKnowledge } = require('./knowledge');
 const { detectMentalHealthSignals } = require('./safety');
@@ -122,8 +122,10 @@ function buildOraclePayload(b) {
   const bookKnowledgeText = selectMonosovKnowledge(b);
   const compactMessage = truncateText(b.message, 1800);
 
+  const modePrompt = getPromptForMode(b.requestMode) + getDepthInstruction(b.depth) + getToneInstruction(b.tone);
+
   const userParts = [
-    `=== ИНСТРУКЦИИ РЕЖИМА ===\n${getPromptForMode(b.requestMode)}`,
+    `=== ИНСТРУКЦИИ РЕЖИМА ===\n${modePrompt}`,
     `=== КАРТА ===\n${buildUserData(b)}`
   ];
 

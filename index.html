@@ -52,6 +52,24 @@
     </div>
     <div class="chat-area" id="chatArea"></div>
     <div class="composer">
+      <div class="oracle-settings">
+        <div class="setting-group">
+          <span class="setting-label">Глубина</span>
+          <div class="setting-pills" id="depthPills">
+            <button class="pill" data-value="brief" onclick="setOracleDepth('brief')">Кратко</button>
+            <button class="pill active" data-value="detailed" onclick="setOracleDepth('detailed')">Подробно</button>
+            <button class="pill" data-value="deep" onclick="setOracleDepth('deep')">Глубоко</button>
+          </div>
+        </div>
+        <div class="setting-group">
+          <span class="setting-label">Тон</span>
+          <div class="setting-pills" id="tonePills">
+            <button class="pill" data-value="soft" onclick="setOracleTone('soft')">Мягко</button>
+            <button class="pill active" data-value="practical" onclick="setOracleTone('practical')">Практично</button>
+            <button class="pill" data-value="harsh" onclick="setOracleTone('harsh')">Жёстко</button>
+          </div>
+        </div>
+      </div>
       <div class="oracle-modes">
         <button class="mode-btn active" id="modeOracle" onclick="setOracleMode('oracle')">Оракул</button>
         <button class="mode-btn" id="modeTarot" onclick="setOracleMode('tarot')">Расклад таро</button>

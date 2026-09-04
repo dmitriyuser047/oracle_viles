@@ -43,6 +43,31 @@ const fallbackResponses = [
   function(n, s) { return 'Это цикл, который замыкается. То, что началось месяцы назад, подходит к развязке. Не форсируй результат — дай ему прийти самому.'; },
 ];
 
+function setOracleDepth(depth) {
+  oracleDepth = ['brief', 'detailed', 'deep'].includes(depth) ? depth : 'detailed';
+  document.querySelectorAll('#depthPills .pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-value') === oracleDepth);
+  });
+  saveToStorage();
+}
+
+function setOracleTone(tone) {
+  oracleTone = ['soft', 'practical', 'harsh'].includes(tone) ? tone : 'practical';
+  document.querySelectorAll('#tonePills .pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-value') === oracleTone);
+  });
+  saveToStorage();
+}
+
+function restoreSettingsPills() {
+  document.querySelectorAll('#depthPills .pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-value') === oracleDepth);
+  });
+  document.querySelectorAll('#tonePills .pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-value') === oracleTone);
+  });
+}
+
 function setOracleMode(mode) {
   oracleMode = ['tarot', 'dialogue', 'dialogue_energy', 'dream'].includes(mode) ? mode : 'oracle';
   var modeMap = {
@@ -331,6 +356,8 @@ async function askOracle(message, options) {
     ctx.message = message;
     var memoryChatKey = options && options.chatKey ? options.chatKey : getCurrentChatKey();
     ctx.chatMemory = buildChatMemoryForApi(memoryChatKey, message);
+    ctx.depth = oracleDepth || 'detailed';
+    ctx.tone = oracleTone || 'practical';
     ctx.requestMode = options && options.requestMode
       ? options.requestMode
       : (oracleMode === 'tarot'

@@ -97,6 +97,34 @@
     position: sticky; bottom: 0;
     background: linear-gradient(transparent 0%, rgba(5,7,6,0.96) 32%);
   }
+  /* Depth & Tone settings */
+  .oracle-settings {
+    padding: 10px 16px 0; display: flex; gap: 16px; align-items: center;
+    flex-wrap: wrap;
+  }
+  .setting-group {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .setting-label {
+    font-size: 10px; color: var(--dim); letter-spacing: 1px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .setting-pills {
+    display: flex; gap: 4px;
+  }
+  .pill {
+    height: 28px; padding: 0 10px; border-radius: 14px;
+    border: 1px solid rgba(197,154,92,0.12);
+    background: rgba(255,255,255,0.025); color: var(--dim);
+    font-size: 11.5px; font-family: inherit; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .pill.active {
+    color: #fff4d8; border-color: rgba(224,189,122,0.4);
+    background: rgba(197,154,92,0.16);
+  }
+  .pill:active { transform: scale(0.95); }
+
   .oracle-modes {
     padding: 12px 16px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
   }

@@ -264,6 +264,7 @@ document.getElementById('birthInput').addEventListener('input', function() {
 // Автозагрузка при открытии
 if (loadFromStorage()) {
   startApp(true);
+  restoreSettingsPills();
 }
 
 setInterval(function() {

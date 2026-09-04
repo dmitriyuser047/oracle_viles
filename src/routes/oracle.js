@@ -2,7 +2,7 @@ const express = require('express');
 const config = require('../config');
 const { requestAI } = require('../ai/providers');
 const { estimateUsageCost, recordAiUsage } = require('../ai/usage');
-const { SYSTEM_PROMPT, getMaxTokensForMode } = require('../oracle/prompts');
+const { SYSTEM_PROMPT, getMaxTokensForMode, getDepthInstruction } = require('../oracle/prompts');
 const { buildOraclePayload } = require('../oracle/payload');
 const { cleanOracleReply } = require('../oracle/reply-pipeline');
 
@@ -17,7 +17,10 @@ router.post('/api/oracle', async (req, res) => {
     }
 
     const payload = buildOraclePayload(b);
-    const aiResult = await requestAI(SYSTEM_PROMPT, payload.userMessage, getMaxTokensForMode(b.requestMode));
+    const baseTokens = getMaxTokensForMode(b.requestMode);
+    const depthMultiplier = b.depth === 'brief' ? 0.55 : (b.depth === 'deep' ? 1.5 : 1);
+    const maxTokens = Math.round(baseTokens * depthMultiplier);
+    const aiResult = await requestAI(SYSTEM_PROMPT, payload.userMessage, maxTokens);
     const reply = cleanOracleReply(aiResult.text, b);
     const estimatedCostUsd = estimateUsageCost(aiResult.usage);
 
