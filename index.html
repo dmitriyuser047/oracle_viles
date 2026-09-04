@@ -2391,6 +2391,50 @@ function getChatTitle(key) {
   return titles[key] || 'Оракул';
 }
 
+function compactText(value, limit) {
+  var text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= limit) return text;
+  return text.slice(0, Math.max(0, limit - 16)).trim() + '...';
+}
+
+function buildChatMemoryForApi(key, currentMessage) {
+  var history = Array.isArray(chatHistories[key]) ? chatHistories[key] : [];
+  var meaningful = history.filter(function(item) {
+    if (!item || !String(item.text || '').trim()) return false;
+    if (item.type !== 'user' && item.type !== 'oracle') return false;
+    return String(item.text || '').trim() !== String(currentMessage || '').trim();
+  });
+
+  if (!meaningful.length) {
+    return { summary: '', recent: [] };
+  }
+
+  var recent = meaningful.slice(-4).map(function(item) {
+    return {
+      role: item.type === 'oracle' ? 'assistant' : 'user',
+      text: compactText(item.text, 260)
+    };
+  });
+
+  var older = meaningful.slice(0, Math.max(0, meaningful.length - 4));
+  var userCount = older.filter(function(item) { return item.type === 'user'; }).length;
+  var oracleCount = older.filter(function(item) { return item.type === 'oracle'; }).length;
+  var firstUser = older.find(function(item) { return item.type === 'user'; });
+  var lastUser = older.slice().reverse().find(function(item) { return item.type === 'user'; });
+  var summaryParts = [];
+
+  if (older.length) {
+    summaryParts.push('Ранее в этом чате было ' + older.length + ' реплик: ' + userCount + ' от пользователя и ' + oracleCount + ' от Велеса.');
+    if (firstUser) summaryParts.push('Первый запрос: ' + compactText(firstUser.text, 160));
+    if (lastUser && lastUser !== firstUser) summaryParts.push('Последний старый запрос: ' + compactText(lastUser.text, 160));
+  }
+
+  return {
+    summary: compactText(summaryParts.join(' '), 520),
+    recent: recent
+  };
+}
+
 function shouldArchiveChat(history, now) {
   if (!Array.isArray(history) || history.length === 0) return false;
   var meaningful = history.some(function(item) {
@@ -2591,6 +2635,8 @@ async function askOracle(message, options) {
     var ctx = buildEsotericContext(message);
     ctx.events = eventsForApi;
     ctx.message = message;
+    var memoryChatKey = options && options.chatKey ? options.chatKey : getCurrentChatKey();
+    ctx.chatMemory = buildChatMemoryForApi(memoryChatKey, message);
     ctx.requestMode = options && options.requestMode
       ? options.requestMode
       : (oracleMode === 'tarot'

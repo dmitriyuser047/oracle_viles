@@ -25,6 +25,15 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
 const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01';
 const KNOWLEDGE_DIR = path.join(__dirname, 'knowledge');
+const DATA_DIR = path.join(__dirname, 'data');
+const AI_USAGE_LOG_PATH = process.env.AI_USAGE_LOG_PATH || path.join(DATA_DIR, 'ai-usage.jsonl');
+const USAGE_STATS_TOKEN = process.env.USAGE_STATS_TOKEN || '';
+
+const ANTHROPIC_PRICES_PER_MTOK = [
+  { pattern: /haiku/i, input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.10 },
+  { pattern: /sonnet/i, input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.30 },
+  { pattern: /opus/i, input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.50 }
+];
 
 function loadKnowledgeFile(fileName) {
   try {
@@ -48,6 +57,155 @@ app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'oracle-viles' });
 });
 
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function readJsonLines(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    return fs.readFileSync(filePath, 'utf8')
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch (_err) {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch (err) {
+    console.warn('Usage log read failed:', err.message);
+    return [];
+  }
+}
+
+function getAnthropicPrice(model) {
+  return ANTHROPIC_PRICES_PER_MTOK.find((item) => item.pattern.test(model || '')) || ANTHROPIC_PRICES_PER_MTOK[0];
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 1000000) / 1000000;
+}
+
+function normalizeUsage(provider, model, data) {
+  const rawUsage = data?.usage || {};
+  if (provider === 'anthropic') {
+    return {
+      provider,
+      model,
+      inputTokens: Number(rawUsage.input_tokens || 0),
+      outputTokens: Number(rawUsage.output_tokens || 0),
+      cacheWriteTokens: Number(rawUsage.cache_creation_input_tokens || 0),
+      cacheReadTokens: Number(rawUsage.cache_read_input_tokens || 0),
+      totalTokens: Number(rawUsage.input_tokens || 0)
+        + Number(rawUsage.output_tokens || 0)
+        + Number(rawUsage.cache_creation_input_tokens || 0)
+        + Number(rawUsage.cache_read_input_tokens || 0),
+      raw: rawUsage
+    };
+  }
+
+  return {
+    provider,
+    model,
+    inputTokens: Number(rawUsage.prompt_tokens || 0),
+    outputTokens: Number(rawUsage.completion_tokens || 0),
+    cacheWriteTokens: 0,
+    cacheReadTokens: 0,
+    totalTokens: Number(rawUsage.total_tokens || 0),
+    raw: rawUsage
+  };
+}
+
+function estimateUsageCost(usage) {
+  if (!usage || usage.provider !== 'anthropic') return null;
+  const price = getAnthropicPrice(usage.model);
+  return roundMoney(
+    (usage.inputTokens / 1000000) * price.input
+    + (usage.outputTokens / 1000000) * price.output
+    + (usage.cacheWriteTokens / 1000000) * price.cacheWrite
+    + (usage.cacheReadTokens / 1000000) * price.cacheRead
+  );
+}
+
+function recordAiUsage(entry) {
+  try {
+    ensureDataDir();
+    fs.appendFileSync(AI_USAGE_LOG_PATH, JSON.stringify(entry) + '\n', 'utf8');
+  } catch (err) {
+    console.warn('Usage log write failed:', err.message);
+  }
+}
+
+function isLocalRequest(req) {
+  const ip = req.ip || req.socket?.remoteAddress || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
+function canReadUsageStats(req) {
+  if (isLocalRequest(req)) return true;
+  if (!USAGE_STATS_TOKEN) return false;
+  return req.get('x-usage-token') === USAGE_STATS_TOKEN || req.query.token === USAGE_STATS_TOKEN;
+}
+
+function emptyUsageSummary() {
+  return {
+    requests: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    totalTokens: 0,
+    estimatedCostUsd: 0
+  };
+}
+
+function addUsage(summary, entry) {
+  const usage = entry.usage || {};
+  summary.requests += 1;
+  summary.inputTokens += Number(usage.inputTokens || 0);
+  summary.outputTokens += Number(usage.outputTokens || 0);
+  summary.cacheReadTokens += Number(usage.cacheReadTokens || 0);
+  summary.cacheWriteTokens += Number(usage.cacheWriteTokens || 0);
+  summary.totalTokens += Number(usage.totalTokens || 0);
+  summary.estimatedCostUsd = roundMoney(summary.estimatedCostUsd + Number(entry.estimatedCostUsd || 0));
+}
+
+app.get('/api/usage-stats', (req, res) => {
+  if (!canReadUsageStats(req)) {
+    return res.status(403).json({ error: 'Статистика доступна только локально на сервере или по токену.' });
+  }
+
+  const now = new Date();
+  const todayKey = now.toISOString().slice(0, 10);
+  const monthKey = now.toISOString().slice(0, 7);
+  const entries = readJsonLines(AI_USAGE_LOG_PATH);
+  const summary = {
+    total: emptyUsageSummary(),
+    today: emptyUsageSummary(),
+    month: emptyUsageSummary(),
+    byMode: {},
+    recent: entries.slice(-20).reverse()
+  };
+
+  entries.forEach((entry) => {
+    const date = String(entry.createdAt || '');
+    addUsage(summary.total, entry);
+    if (date.startsWith(todayKey)) addUsage(summary.today, entry);
+    if (date.startsWith(monthKey)) addUsage(summary.month, entry);
+
+    const mode = entry.requestMode || 'unknown';
+    if (!summary.byMode[mode]) summary.byMode[mode] = emptyUsageSummary();
+    addUsage(summary.byMode[mode], entry);
+  });
+
+  res.json(summary);
+});
+
 const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский оракул. Говоришь образно, мистично и по делу.
 
 ОБЯЗАТЕЛЬНО: начни ответ с имени человека из блока КАРТА. Используй ТОЛЬКО данные оттуда. Не выдумывай и не подменяй данные.
@@ -61,6 +219,7 @@ const SYSTEM_PROMPT = `Ты — Велес, мудрый славянский о
 - Не смешивай каббалистику и руны. Не называй Луну, если человек прямо не спросил про Луну, лунный день, фазу, новолуние или полнолуние.
 - Психологию используй скрыто: замечай страх, контроль, избегание, повтор роли, потребность в опоре, но не называй теории.
 - Не отвечай односложно. Даже на простой вопрос дай ощущение анализа: что видно в ситуации, почему это могло сложиться, где ресурс человека, где ловушка и какой следующий шаг.
+- Не повторяй одну мысль разными словами. Если смысл уже сказан, развивай его новым наблюдением или действием.
 - Не ограничивайся советом. Сначала покажи скрытый узор ситуации, затем уже дай действие.
 - Не ставь диагнозы и не называй человека больным. Если нет прямой угрозы вреда себе или другим, отвечай мягко: "не вижу подтверждения этому в карте и хронике", "проверь факты", "не принимай решение из страха".
 - Не спорь с верой человека и не разоблачай мистику. Возвращай выбор, а не приговор.
@@ -512,6 +671,21 @@ function formatEventsForPrompt(events) {
   return lines.join('\n');
 }
 
+function formatChatMemoryForPrompt(memory) {
+  if (!memory || typeof memory !== 'object') return '';
+  const summary = truncateText(memory.summary || '', 600);
+  const recent = Array.isArray(memory.recent) ? memory.recent.slice(-4) : [];
+  const lines = recent.map((item) => {
+    const role = item && item.role === 'assistant' ? 'Велес' : 'Пользователь';
+    return `${role}: ${truncateText(item?.text || '', 240)}`;
+  }).filter(Boolean);
+
+  return [
+    summary ? `Краткое summary прошлых реплик: ${summary}` : '',
+    lines.length ? 'Последние реплики\n' + lines.join('\n') : ''
+  ].filter(Boolean).join('\n\n');
+}
+
 function hasImmediateDanger(message, events) {
   var text = ([message || ''].concat((events || []).map(function(e) {
     return e && e.text ? e.text : '';
@@ -785,20 +959,20 @@ function getPromptForMode(mode) {
   if (mode === 'tarot_spread') {
     return `Ты — Велес, таролог. Колода Райдера-Уэйта. Используй только карты из "Расклад таро". Не добавляй руны, чакры, нумерологию. Структура: вступление, "Корень вопроса", "Скрытая сила и тень", "Ближайший шаг", итог. Русский, кириллица, без эмодзи.`;
   }
-  return SYSTEM_PROMPT;
+  return `Режим: обычный оракул. Используй карту, события и только релевантные опоры. Не называй внутренние системы без прямого вопроса. Дай развернутый, но не повторяющийся ответ: узор ситуации, ресурс, риск, чего не делать и конкретный шаг.`;
 }
 
 function getMaxTokensForMode(mode) {
-  if (mode === 'moon') return 800;
-  if (mode === 'rune_code') return 1100;
-  if (mode === 'profile_item') return 950;
-  if (mode === 'dialogue_analysis') return 1100;
-  if (mode === 'dialogue_energy') return 1100;
-  if (mode === 'bond_analysis') return 1200;
-  if (mode === 'dream_interpretation') return 1100;
-  if (mode === 'matrix_arcana') return 900;
-  if (mode === 'tarot_spread') return 1000;
-  return 1050;
+  if (mode === 'moon') return 1500;
+  if (mode === 'matrix_arcana') return 1500;
+  if (mode === 'profile_item') return 1700;
+  if (mode === 'dialogue_analysis') return 1800;
+  if (mode === 'dialogue_energy') return 1800;
+  if (mode === 'rune_code') return 2000;
+  if (mode === 'tarot_spread') return 2200;
+  if (mode === 'dream_interpretation') return 2500;
+  if (mode === 'bond_analysis') return 2600;
+  return 1600;
 }
 
 function getProviderOrder() {
@@ -845,13 +1019,24 @@ async function requestGroq(systemText, userMessage, maxTokens) {
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  return {
+    provider: 'groq',
+    model: GROQ_MODEL,
+    text: data.choices?.[0]?.message?.content || '',
+    usage: normalizeUsage('groq', GROQ_MODEL, data)
+  };
 }
 
 async function requestAnthropic(systemText, userMessage, maxTokens) {
   const body = JSON.stringify({
     model: ANTHROPIC_MODEL,
-    system: systemText,
+    system: [
+      {
+        type: 'text',
+        text: systemText,
+        cache_control: { type: 'ephemeral' }
+      }
+    ],
     messages: [
       { role: 'user', content: userMessage }
     ],
@@ -877,11 +1062,16 @@ async function requestAnthropic(systemText, userMessage, maxTokens) {
   }
 
   const data = await response.json();
-  return (data.content || [])
-    .filter((part) => part && part.type === 'text')
-    .map((part) => part.text || '')
-    .join('\n')
-    .trim();
+  return {
+    provider: 'anthropic',
+    model: ANTHROPIC_MODEL,
+    text: (data.content || [])
+      .filter((part) => part && part.type === 'text')
+      .map((part) => part.text || '')
+      .join('\n')
+      .trim(),
+    usage: normalizeUsage('anthropic', ANTHROPIC_MODEL, data)
+  };
 }
 
 async function requestAI(systemText, userMessage, maxTokens) {
@@ -896,10 +1086,10 @@ async function requestAI(systemText, userMessage, maxTokens) {
   for (const provider of providers) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const text = provider === 'anthropic'
+        const result = provider === 'anthropic'
           ? await requestAnthropic(systemText, userMessage, maxTokens)
           : await requestGroq(systemText, userMessage, maxTokens);
-        if (text) return { provider, text };
+        if (result.text) return result;
         throw new Error(provider + ' returned empty reply');
       } catch (err) {
         lastError = err;
@@ -933,7 +1123,7 @@ function keywordMatches(text, item) {
 function pickKeywordItems(items, text, limit) {
   if (!items || !items.length) return [];
   const matched = items.filter((item) => keywordMatches(text, item));
-  return (matched.length ? matched : items.slice(0, limit)).slice(0, limit);
+  return matched.slice(0, limit);
 }
 
 function formatDreamKnowledge(b) {
@@ -942,14 +1132,10 @@ function formatDreamKnowledge(b) {
   const types = pickKeywordItems(DREAM_SYMBOLS_KNOWLEDGE.dream_types, b.message, 3);
   const practices = pickKeywordItems(DREAM_SYMBOLS_KNOWLEDGE.practices, b.message, 3);
   return [
-    sectionText('Правила сонника', DREAM_SYMBOLS_KNOWLEDGE.rules),
-    sectionText('Оси чтения сна', DREAM_SYMBOLS_KNOWLEDGE.reading_axes),
-    'Типы сна',
-    types.map((t) => `- ${t.name}: функция — ${t.function}; сигнал — ${t.signal}; вопрос — ${t.question}.`).join('\n'),
-    'Символы сна',
-    symbols.map((s) => `- ${s.name}: смысл — ${s.meaning}; тень — ${s.shadow}; практика — ${s.practice}.`).join('\n'),
-    'Практики после сна',
-    practices.map((p) => `- ${p.name}: когда — ${p.use_when}; шаги — ${p.steps}.`).join('\n')
+    (symbols.length || types.length || practices.length) ? sectionText('Правила сонника', DREAM_SYMBOLS_KNOWLEDGE.rules) : '',
+    types.length ? 'Типы сна\n' + types.map((t) => `- ${t.name}: функция — ${t.function}; сигнал — ${t.signal}; вопрос — ${t.question}.`).join('\n') : '',
+    symbols.length ? 'Символы сна\n' + symbols.map((s) => `- ${s.name}: смысл — ${s.meaning}; тень — ${s.shadow}; практика — ${s.practice}.`).join('\n') : '',
+    practices.length ? 'Практики после сна\n' + practices.map((p) => `- ${p.name}: когда — ${p.use_when}; шаги — ${p.steps}.`).join('\n') : ''
   ].filter(Boolean).join('\n\n');
 }
 
@@ -958,7 +1144,9 @@ function formatDialogueKnowledge(b) {
   if (DIALOGUE_PATTERNS_KNOWLEDGE) {
     parts.push(sectionText('Правила переписки', DIALOGUE_PATTERNS_KNOWLEDGE.rules));
     const patterns = pickKeywordItems(DIALOGUE_PATTERNS_KNOWLEDGE.patterns, b.message, 4);
-    parts.push('Паттерны переписки\n' + patterns.map((p) => `- ${p.name}: ${p.meaning}; риск — ${p.risk}; ответ — ${p.reply}.`).join('\n'));
+    if (patterns.length) {
+      parts.push('Паттерны переписки\n' + patterns.map((p) => `- ${p.name}: ${p.meaning}; риск — ${p.risk}; ответ — ${p.reply}.`).join('\n'));
+    }
   }
   return parts.filter(Boolean).join('\n\n');
 }
@@ -966,6 +1154,7 @@ function formatDialogueKnowledge(b) {
 function formatPsychologyKnowledge(b, limit = 4) {
   if (!PSYCHOLOGY_MODELS_KNOWLEDGE) return '';
   const models = pickKeywordItems(PSYCHOLOGY_MODELS_KNOWLEDGE.models, b.message, limit);
+  if (!models.length) return '';
   return [
     sectionText('Правила психологического слоя', PSYCHOLOGY_MODELS_KNOWLEDGE.rules),
     'Модели наблюдения',
@@ -986,12 +1175,10 @@ function formatTarotKnowledge(b) {
   if (!TAROT_WAITE_KNOWLEDGE) return '';
   const cardNames = (b.tarotSpread || []).map((card) => card.name).filter(Boolean);
   const cards = TAROT_WAITE_KNOWLEDGE.cards.filter((card) => cardNames.includes(card.name));
-  const fallbackCards = cards.length ? cards : TAROT_WAITE_KNOWLEDGE.cards.slice(0, 8);
   return [
     sectionText('Правила Таро Уэйта', TAROT_WAITE_KNOWLEDGE.rules),
     sectionText('Масти', TAROT_WAITE_KNOWLEDGE.suits.map((s) => `${s.name}: ${s.domain}`)),
-    'Карты расклада',
-    fallbackCards.map((c) => `- ${c.name}: ${c.meaning}; тень — ${c.shadow}; совет — ${c.advice}.`).join('\n')
+    cards.length ? 'Карты расклада\n' + cards.map((c) => `- ${c.name}: ${c.meaning}; тень — ${c.shadow}; совет — ${c.advice}.`).join('\n') : ''
   ].filter(Boolean).join('\n\n');
 }
 
@@ -1075,7 +1262,10 @@ function selectMonosovKnowledge(b) {
     if (number) blocks.push(`Ключ числа\n- ${number.value}: ${number.meaning}; тень — ${number.shadow}; практика — ${number.practice}.`);
   }
 
-  if (MONOSOV_KNOWLEDGE && (wantsTarotOrKabbalah || wantsRunes || mode === 'oracle' || b.events?.length)) {
+  const wantsChronicle = Array.isArray(b.events) && b.events.length > 0;
+  const wantsSound = message.includes('мантр') || message.includes('звук') || message.includes('слово') || message.includes('практик');
+
+  if (MONOSOV_KNOWLEDGE && (wantsTarotOrKabbalah || wantsRunes || wantsChronicle || wantsSound)) {
     blocks.push(sectionText('Правила ответа', MONOSOV_KNOWLEDGE.rules));
   }
 
@@ -1127,11 +1317,11 @@ function selectMonosovKnowledge(b) {
     }
   }
 
-  if (MONOSOV_KNOWLEDGE && (mode === 'oracle' || b.events?.length)) {
+  if (MONOSOV_KNOWLEDGE && wantsChronicle) {
     blocks.push(sectionText('Хроника и повторяющиеся события', MONOSOV_KNOWLEDGE.chronicle.lens));
   }
 
-  if (MONOSOV_KNOWLEDGE && (message.includes('мантр') || message.includes('звук') || message.includes('слово') || message.includes('практик'))) {
+  if (MONOSOV_KNOWLEDGE && wantsSound) {
     blocks.push(sectionText('Слово, звук и символ', MONOSOV_KNOWLEDGE.language_and_sound.lens));
   }
 
@@ -1275,28 +1465,34 @@ app.post('/api/oracle', async (req, res) => {
     const mentalHealthSignals = detectMentalHealthSignals(b.message, b.events);
     const bookKnowledgeText = selectMonosovKnowledge(b);
 
-    const parts = [getPromptForMode(b.requestMode), `\n=== КАРТА ===\n${userData}`];
-    if (bookKnowledgeText) parts.push(`\n=== ОПОРЫ ОТВЕТА ===\n${bookKnowledgeText}`);
-    if (eventsText !== 'Пока нет записей') parts.push(`\n=== СОБЫТИЯ ===\n${eventsText}`);
-    if (mentalHealthSignals.includes('Уровень внимания')) parts.push(`\n=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
-    const systemText = parts.join('');
+    const systemText = SYSTEM_PROMPT;
+    const userParts = [
+      `=== ИНСТРУКЦИИ РЕЖИМА ===\n${getPromptForMode(b.requestMode)}`,
+      `=== КАРТА ===\n${userData}`
+    ];
+    const chatMemoryText = formatChatMemoryForPrompt(b.chatMemory);
+    if (chatMemoryText) userParts.push(`=== ПАМЯТЬ ДИАЛОГА ===\n${chatMemoryText}`);
+    if (bookKnowledgeText) userParts.push(`=== РЕЛЕВАНТНЫЕ ОПОРЫ ОТВЕТА ===\n${bookKnowledgeText}`);
+    if (eventsText !== 'Пока нет записей') userParts.push(`=== СОБЫТИЯ ===\n${eventsText}`);
+    if (mentalHealthSignals.includes('Уровень внимания')) userParts.push(`=== БЕЗОПАСНОСТЬ ===\n${mentalHealthSignals}`);
 
     const compactMessage = truncateText(b.message, 1800);
-    const userMessage = (function() {
+    userParts.push((function() {
       if (b.requestMode === 'dialogue_analysis') {
-        return `Меня зовут ${b.userName}. Разбери это сообщение или диалог практично, без эзотерики на поверхности: ${compactMessage}`;
+        return `=== ВОПРОС ===\nРазбери это сообщение или диалог практично, без эзотерики на поверхности: ${compactMessage}`;
       }
       if (b.requestMode === 'dialogue_energy') {
-        return `Меня зовут ${b.userName}. Разбери энергии и чакры в этом сообщении или диалоге: ${compactMessage}`;
+        return `=== ВОПРОС ===\nРазбери энергии и чакры в этом сообщении или диалоге: ${compactMessage}`;
       }
       if (b.requestMode === 'dream_interpretation') {
-        return `Меня зовут ${b.userName}. Растолкуй этот сон подробно и понятно: ${compactMessage}`;
+        return `=== ВОПРОС ===\nРастолкуй этот сон подробно и понятно: ${compactMessage}`;
       }
       if (b.requestMode === 'bond_analysis') {
-        return `Меня зовут ${b.userName}. Разбери связь пары подробно и практично: ${compactMessage}`;
+        return `=== ВОПРОС ===\nРазбери связь пары подробно и практично: ${compactMessage}`;
       }
-      return `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${compactMessage}`;
-    })();
+      return `=== ВОПРОС ===\n${compactMessage}`;
+    })());
+    const userMessage = userParts.filter(Boolean).join('\n\n');
 
     const aiResult = await requestAI(systemText, userMessage, getMaxTokensForMode(b.requestMode));
     let rawReply = aiResult.text || 'Звёзды молчат... Попробуй позже.';
@@ -1313,6 +1509,26 @@ app.post('/api/oracle', async (req, res) => {
     }
     const cleanedReply = cleanExternalReferencesReply(cleanGrammarReply(ensureNameOpening(cleanBondReply(cleanDialogueEnergyReply(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b), b), b)), b);
     const reply = polishReply(cleanMarkdownReply(cleanGrammarReply(ensureNameOpening(cleanedReply, b))));
+    const estimatedCostUsd = estimateUsageCost(aiResult.usage);
+    recordAiUsage({
+      createdAt: new Date().toISOString(),
+      provider: aiResult.provider,
+      model: aiResult.model,
+      requestMode: b.requestMode || 'oracle',
+      inputLength: compactMessage.length,
+      replyLength: reply.length,
+      usage: aiResult.usage,
+      estimatedCostUsd
+    });
+    console.log(aiResult.provider + ' usage:', JSON.stringify({
+      model: aiResult.model,
+      mode: b.requestMode || 'oracle',
+      inputTokens: aiResult.usage?.inputTokens || 0,
+      outputTokens: aiResult.usage?.outputTokens || 0,
+      cacheReadTokens: aiResult.usage?.cacheReadTokens || 0,
+      totalTokens: aiResult.usage?.totalTokens || 0,
+      estimatedCostUsd
+    }));
     console.log(aiResult.provider + ' reply:', reply);
 
     res.json({ reply });
