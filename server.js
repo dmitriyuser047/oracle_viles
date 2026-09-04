@@ -4,10 +4,12 @@ const config = require('./src/config');
 const { primaryModelName } = require('./src/ai/providers');
 const { usageStatsHandler } = require('./src/ai/usage');
 const oracleRouter = require('./src/routes/oracle');
+const authRouter = require('./src/routes/auth-routes');
+const userDataRouter = require('./src/routes/user-data');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(config.STATIC_DIR));
 
 app.get('/health', (req, res) => {
@@ -15,6 +17,8 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/api/usage-stats', usageStatsHandler);
+app.use(authRouter);
+app.use(userDataRouter);
 app.use(oracleRouter);
 
 const PORT = config.PORT;

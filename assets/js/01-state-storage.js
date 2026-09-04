@@ -36,6 +36,7 @@ function saveToStorage() {
       events: events.map(function(e) { return { text: e.text, ts: e.date.getTime() }; })
     }));
   } catch(e) {}
+  if (typeof scheduleSyncToServer === 'function') scheduleSyncToServer();
 }
 
 function loadFromStorage() {

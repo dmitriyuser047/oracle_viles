@@ -5,6 +5,8 @@ const { estimateUsageCost, recordAiUsage } = require('../ai/usage');
 const { SYSTEM_PROMPT, getMaxTokensForMode, getDepthInstruction } = require('../oracle/prompts');
 const { buildOraclePayload } = require('../oracle/payload');
 const { cleanOracleReply } = require('../oracle/reply-pipeline');
+const { stmts } = require('../db');
+const { verifyToken } = require('../auth');
 
 const router = express.Router();
 
@@ -14,6 +16,26 @@ router.post('/api/oracle', async (req, res) => {
 
     if (!config.ANTHROPIC_API_KEY && !config.GROQ_API_KEY) {
       return res.status(500).json({ error: 'AI ключ не настроен. Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env' });
+    }
+
+    let userId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const payload = verifyToken(authHeader.slice(7));
+      if (payload) {
+        userId = payload.uid;
+        const user = stmts.findUserById.get(userId);
+        if (user) {
+          const todayCount = stmts.countTodayRequests.get(userId).cnt;
+          if (todayCount >= user.daily_limit) {
+            return res.status(429).json({
+              error: 'Дневной лимит исчерпан (' + user.daily_limit + ' запросов). Завтра лимит обновится.',
+              limit: user.daily_limit,
+              used: todayCount
+            });
+          }
+        }
+      }
     }
 
     const payload = buildOraclePayload(b);
@@ -45,6 +67,10 @@ router.post('/api/oracle', async (req, res) => {
       estimatedCostUsd
     }));
     console.log(aiResult.provider + ' reply:', reply);
+
+    if (userId) {
+      stmts.logRequest.run(userId, b.requestMode || 'oracle');
+    }
 
     res.json({ reply });
   } catch (err) {

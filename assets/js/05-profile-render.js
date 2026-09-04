@@ -250,7 +250,8 @@ function buildProfile(zi, bv) {
       '<div class="stat-row"><span class="stat-label">Событий записано</span><span class="stat-value" id="eventCount">' + events.length + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Паттернов найдено</span><span class="stat-value" id="patternCount">0</span></div>' +
     '</div>' +
-    '<button onclick="clearStorage()" style="width:100%;padding:14px;background:rgba(220,80,80,0.08);border:0.5px solid rgba(220,80,80,0.2);border-radius:14px;color:#c88080;font-size:14px;cursor:pointer;font-family:inherit;margin-top:8px;">Выйти и сбросить данные</button>';
+    '<div id="profileAuthInline"></div>' +
+    '<button onclick="clearStorage()" style="width:100%;padding:14px;background:rgba(220,80,80,0.08);border:0.5px solid rgba(220,80,80,0.2);border-radius:14px;color:#c88080;font-size:14px;cursor:pointer;font-family:inherit;margin-top:8px;">Сбросить локальные данные</button>';
   bindProfileRows();
 }
 

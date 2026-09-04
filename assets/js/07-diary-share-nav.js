@@ -249,6 +249,7 @@ function switchScreen(name) {
   if (toolbar) toolbar.style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
   if (name === 'diary') document.getElementById('diaryDot').style.display = 'none';
   if (name === 'bonds') renderBond();
+  if (name === 'profile' && typeof updateAuthUI === 'function') updateAuthUI();
   updateTopSymbols(name);
 }
 
@@ -262,9 +263,11 @@ document.getElementById('birthInput').addEventListener('input', function() {
 });
 
 // Автозагрузка при открытии
+if (typeof loadAuth === 'function') loadAuth();
 if (loadFromStorage()) {
   startApp(true);
   restoreSettingsPills();
+  if (typeof updateAuthUI === 'function') updateAuthUI();
 }
 
 setInterval(function() {

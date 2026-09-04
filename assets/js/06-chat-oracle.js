@@ -398,13 +398,19 @@ async function askOracle(message, options) {
     var lastErr = null;
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
+        var headers = Object.assign({ 'Content-Type': 'application/json' }, typeof getAuthHeaders === 'function' ? getAuthHeaders() : {});
         var response = await fetch('/api/oracle', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: headers,
           body: JSON.stringify(ctx)
         });
-        if (!response.ok) throw new Error('API error ' + response.status);
         var data = await response.json();
+        if (!response.ok) {
+          if (response.status === 429) {
+            return data.error || 'Дневной лимит запросов исчерпан. Завтра лимит обновится.';
+          }
+          throw new Error('API error ' + response.status);
+        }
         if (data.reply) {
           useAI = true;
           return data.reply;

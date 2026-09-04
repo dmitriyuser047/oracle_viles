@@ -135,9 +135,51 @@
     </div>
   </div>
 
+  <!-- АВТОРИЗАЦИЯ -->
+  <div class="screen" id="screen-auth">
+    <div class="onboarding">
+      <div class="eye-symbol">
+        <div class="eye-glow"></div>
+        <svg width="64" height="64" viewBox="0 0 88 88">
+          <ellipse cx="44" cy="44" rx="16" ry="9" fill="none" stroke="#e0bd7a" stroke-width="1.2"/>
+          <circle cx="44" cy="44" r="5" fill="#e0bd7a"/>
+          <circle cx="44" cy="44" r="2" fill="#08080f"/>
+        </svg>
+      </div>
+      <h1 style="font-size:24px;">Вход в Велес</h1>
+      <div id="authForm" data-mode="login">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="authEmail" placeholder="email@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Пароль</label>
+          <input type="password" id="authPassword" placeholder="Минимум 6 символов">
+        </div>
+        <div class="form-group" id="authNameGroup" style="display:none;">
+          <label class="form-label">Твоё имя</label>
+          <input type="text" id="authName" placeholder="Как тебя зовут?">
+        </div>
+        <div class="form-group" id="authBirthGroup" style="display:none;">
+          <label class="form-label">Дата рождения</label>
+          <input type="date" id="authBirth" style="color-scheme: dark;">
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <button class="start-btn" id="authSubmitBtn" onclick="submitAuth()">Войти</button>
+        <div class="auth-toggle" id="authToggle">
+          Нет аккаунта? <a href="#" onclick="setAuthMode('register'); return false;">Зарегистрироваться</a>
+        </div>
+        <div class="auth-skip">
+          <a href="#" onclick="document.getElementById('screen-auth').classList.remove('active'); return false;">Продолжить без аккаунта</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ПРОФИЛЬ -->
   <div class="screen" id="screen-profile">
     <div class="screen-title">Профиль</div>
+    <div id="profileAuthSection"></div>
     <div class="profile-content" id="profileContent"></div>
   </div>
 
@@ -163,6 +205,7 @@
   </div>
 </div>
 
+<script src="/assets/js/00-auth.js"></script>
 <script src="/assets/js/01-state-storage.js"></script>
 <script src="/assets/js/02-esoteric-core.js"></script>
 <script src="/assets/js/03-profile-bonds.js"></script>
