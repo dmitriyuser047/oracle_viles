@@ -1,5 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const config = require('./src/config');
 const { primaryModelName } = require('./src/ai/providers');
 const { usageStatsHandler } = require('./src/ai/usage');
@@ -8,9 +11,28 @@ const authRouter = require('./src/routes/auth-routes');
 const userDataRouter = require('./src/routes/user-data');
 
 const app = express();
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
-app.use(express.static(config.STATIC_DIR));
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов, попробуй через минуту' }
+});
+app.use('/api/', apiLimiter);
+
+app.use(express.static(config.STATIC_DIR, {
+  maxAge: '7d',
+  etag: true
+}));
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'oracle-viles' });
