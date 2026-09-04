@@ -24,7 +24,7 @@ JS разделен по зонам ответственности:
 
 ## Сервер
 
-`server.js` пока остается главным файлом приложения и содержит сборку оракульного ответа, но инфраструктурные части уже вынесены:
+`server.js` теперь остается короткой точкой запуска приложения, а оракульная логика разнесена по серверным модулям:
 
 - `src/config.js` — загрузка `.env`, пути, порт, модели и ключи провайдеров.
 - `src/ai/providers.js` — Claude, Groq, порядок fallback и prompt caching для Claude.
@@ -34,5 +34,9 @@ JS разделен по зонам ответственности:
 - `src/oracle/prompt-utils.js` — безопасное сжатие событий и памяти чата перед отправкой в AI.
 - `src/oracle/knowledge.js` — выбор релевантных knowledge-блоков без fallback “первые N элементов”.
 - `src/oracle/safety.js` — мягкое распознавание кризисных и тревожных сигналов без диагнозов в ответе.
+- `src/oracle/formatters.js` — форматирование профиля, матрицы, расклада, связи и рунического кода для prompt.
+- `src/oracle/payload.js` — сборка компактного `userMessage` для AI.
+- `src/oracle/reply-pipeline.js` — единая цепочка нормализации и очистки ответа.
+- `src/routes/oracle.js` — HTTP endpoint `/api/oracle`, вызов AI и запись usage.
 
-Следующий безопасный этап — вынести из `server.js` сборку payload для `/api/oracle`, не меняя API `/api/oracle`, `/api/usage-stats` и `/health`.
+`server.js` теперь остается точкой сборки Express: middleware, статические файлы, health, usage route, oracle route и запуск порта. API `/api/oracle`, `/api/usage-stats` и `/health` сохранены.
