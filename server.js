@@ -30,7 +30,7 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 app.use(express.static(config.STATIC_DIR, {
-  maxAge: '7d',
+  maxAge: '1h',
   etag: true
 }));
 

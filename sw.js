@@ -1,4 +1,4 @@
-var CACHE = 'veles-v1';
+var CACHE = 'veles-v2';
 var ASSETS = [
   '/',
   '/index.html',
@@ -21,7 +21,9 @@ var ASSETS = [
 self.addEventListener('install', function(e) {
   e.waitUntil(
     caches.open(CACHE).then(function(cache) {
-      return cache.addAll(ASSETS);
+      return cache.addAll(ASSETS.map(function(url) {
+        return new Request(url, { cache: 'no-cache' });
+      }));
     })
   );
   self.skipWaiting();
@@ -45,7 +47,7 @@ self.addEventListener('fetch', function(e) {
     return;
   }
   e.respondWith(
-    fetch(e.request).then(function(resp) {
+    fetch(e.request, { cache: 'no-cache' }).then(function(resp) {
       if (resp.ok) {
         var clone = resp.clone();
         caches.open(CACHE).then(function(cache) { cache.put(e.request, clone); });
