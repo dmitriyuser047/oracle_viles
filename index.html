@@ -779,6 +779,8 @@ let events = [];
 let userBirthValue = '';
 let chatHistories = {};
 let bondProfile = null;
+let archivedChats = [];
+const CHAT_ARCHIVE_TTL = 2 * 60 * 60 * 1000;
 
 function createEmptyChats() {
   return {
@@ -798,6 +800,7 @@ function saveToStorage() {
       name: userName,
       birth: userBirthValue,
       chats: chatHistories,
+      archivedChats: archivedChats,
       bond: bondProfile,
       events: events.map(function(e) { return { text: e.text, ts: e.date.getTime() }; })
     }));
@@ -815,6 +818,8 @@ function loadFromStorage() {
         events = data.events.map(function(e) { return { text: e.text, date: new Date(e.ts) }; });
       }
       chatHistories = Object.assign(createEmptyChats(), data.chats || {});
+      archivedChats = Array.isArray(data.archivedChats) ? data.archivedChats : [];
+      archiveExpiredChats(Date.now(), true);
       bondProfile = data.bond || null;
       return true;
     }
@@ -831,6 +836,7 @@ function clearStorage() {
   events = [];
   userBirthValue = '';
   chatHistories = createEmptyChats();
+  archivedChats = [];
   bondProfile = null;
   document.getElementById('screen-profile').classList.remove('active');
   document.getElementById('screen-oracle').classList.remove('active');
@@ -2319,13 +2325,15 @@ function updatePatternCount() {
 }
 
 function buildDiary() {
+  var hasContent = events.length > 0 || archivedChats.length > 0;
   document.getElementById('diaryList').innerHTML =
     buildDiaryPatterns() +
-    '<div style="text-align:center; padding: 60px 24px;">' +
-      '<div style="font-size: 14px; color: #4a3a70; line-height: 1.7;">' +
-        'Дневник пуст.<br>Расскажи оракулу о событиях — они появятся здесь с космическим контекстом.' +
-      '</div>' +
-    '</div>';
+    (hasContent ? '' :
+      '<div style="text-align:center; padding: 60px 24px;">' +
+        '<div style="font-size: 14px; color: #4a3a70; line-height: 1.7;">' +
+          'Дневник пуст.<br>Расскажи оракулу о событиях — они появятся здесь с космическим контекстом.' +
+        '</div>' +
+      '</div>');
   updatePatternCount();
 }
 
@@ -2370,6 +2378,82 @@ function setOracleMode(mode) {
 
 function getCurrentChatKey() {
   return ['oracle', 'tarot', 'dialogue', 'dialogue_energy', 'dream'].includes(oracleMode) ? oracleMode : 'oracle';
+}
+
+function getChatTitle(key) {
+  var titles = {
+    oracle: 'Оракул',
+    tarot: 'Расклад таро',
+    dialogue: 'Переписка',
+    dialogue_energy: 'Энергии диалога',
+    dream: 'Сонник'
+  };
+  return titles[key] || 'Оракул';
+}
+
+function shouldArchiveChat(history, now) {
+  if (!Array.isArray(history) || history.length === 0) return false;
+  var meaningful = history.some(function(item) {
+    return item && (item.type === 'user' || item.type === 'oracle') && String(item.text || '').trim();
+  });
+  if (!meaningful) return false;
+  var lastTs = history.reduce(function(max, item) {
+    return Math.max(max, item && item.ts ? item.ts : 0);
+  }, 0);
+  return lastTs > 0 && now - lastTs >= CHAT_ARCHIVE_TTL;
+}
+
+function archiveChat(key, reason) {
+  var history = chatHistories[key] || [];
+  if (!history.length) return false;
+
+  var firstTs = history.reduce(function(min, item) {
+    var ts = item && item.ts ? item.ts : Date.now();
+    return Math.min(min, ts);
+  }, Date.now());
+  var lastTs = history.reduce(function(max, item) {
+    return Math.max(max, item && item.ts ? item.ts : firstTs);
+  }, firstTs);
+  var userCount = history.filter(function(item) { return item && item.type === 'user'; }).length;
+  var oracleCount = history.filter(function(item) { return item && item.type === 'oracle'; }).length;
+
+  archivedChats.unshift({
+    id: 'chat_' + lastTs + '_' + key,
+    key: key,
+    title: getChatTitle(key),
+    reason: reason || 'Диалог перенесён в архив',
+    startedAt: firstTs,
+    endedAt: lastTs,
+    userCount: userCount,
+    oracleCount: oracleCount,
+    messages: history.map(function(item) {
+      return {
+        type: item.type,
+        text: item.text || '',
+        meta: item.meta || '',
+        ts: item.ts || lastTs
+      };
+    })
+  });
+
+  chatHistories[key] = [];
+  return true;
+}
+
+function archiveExpiredChats(now, silent, exceptKey) {
+  var changed = false;
+  Object.keys(chatHistories).forEach(function(key) {
+    if (key === exceptKey) return;
+    if (shouldArchiveChat(chatHistories[key], now)) {
+      changed = archiveChat(key, 'Автоархив через 2 часа тишины') || changed;
+    }
+  });
+  if (changed) {
+    updateDiary();
+    saveToStorage();
+    if (!silent) showToast('Диалог перенесён в дневник');
+  }
+  return changed;
 }
 
 function renderChatItem(item) {
@@ -2418,6 +2502,10 @@ function getEmptyChatHint(key) {
 function appendChatMessage(type, text, meta, key) {
   var chatKey = key || getCurrentChatKey();
   if (!chatHistories[chatKey]) chatHistories[chatKey] = [];
+  if (chatHistories[chatKey].length && shouldArchiveChat(chatHistories[chatKey], Date.now())) {
+    archiveChat(chatKey, 'Автоархив через 2 часа тишины');
+    updateDiary();
+  }
   chatHistories[chatKey].push({
     type: type,
     text: text,
@@ -2740,11 +2828,40 @@ function updateDiary() {
   var dl = document.getElementById('diaryList');
   var toolbar = document.getElementById('diaryToolbar');
   var months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-  var entriesHtml = events.map(function(e, originalIndex) {
-    return { entry: e, index: originalIndex };
-  }).sort(function(a, b) {
-    return b.entry.date.getTime() - a.entry.date.getTime();
+  var diaryItems = [];
+
+  events.forEach(function(e, originalIndex) {
+    diaryItems.push({
+      type: 'event',
+      index: originalIndex,
+      time: e.date.getTime(),
+      entry: e
+    });
+  });
+
+  archivedChats.forEach(function(archive, originalIndex) {
+    diaryItems.push({
+      type: 'archive',
+      index: originalIndex,
+      time: archive.endedAt || archive.startedAt || 0,
+      archive: archive
+    });
+  });
+
+  var entriesHtml = diaryItems.sort(function(a, b) {
+    return b.time - a.time;
   }).map(function(item) {
+    if (item.type === 'archive') {
+      var archive = item.archive;
+      var ad = new Date(archive.endedAt || archive.startedAt || Date.now());
+      var total = (archive.userCount || 0) + (archive.oracleCount || 0);
+      return '<div class="diary-entry" onclick="openChatArchive(' + item.index + ')">' +
+        '<div class="date">' + ad.getDate() + ' ' + months[ad.getMonth()] + ' ' + ad.getFullYear() + ', ' + ad.getHours() + ':' + String(ad.getMinutes()).padStart(2,'0') + '</div>' +
+        '<div class="text">Архив диалога: ' + escapeHtml(archive.title || 'Оракул') + '</div>' +
+        '<div class="transit">' + total + ' сообщений • ' + escapeHtml(archive.reason || 'архив') + '</div>' +
+      '</div>';
+    }
+
     var e = item.entry;
     var d = e.date;
     var de = getDayElement(d);
@@ -2756,20 +2873,22 @@ function updateDiary() {
     '</div>';
   }).join('');
   dl.innerHTML = buildDiaryPatterns() +
-    '<div class="diary-section-label"><div class="pattern-icon"><div class="pattern-icon-inner"></div></div>Записи</div>' +
-    entriesHtml;
-  if (toolbar) toolbar.style.display = events.length > 0 ? 'flex' : 'none';
-  document.getElementById('addEntryBtn').style.display = document.getElementById('screen-diary').classList.contains('active') && events.length > 0 ? 'flex' : 'none';
-  document.getElementById('diaryDot').style.display = events.length > 0 ? 'block' : 'none';
+    (diaryItems.length
+      ? '<div class="diary-section-label"><div class="pattern-icon"><div class="pattern-icon-inner"></div></div>Записи и архивы</div>' + entriesHtml
+      : '<div style="text-align:center; padding: 60px 24px;"><div style="font-size: 14px; color: #4a3a70; line-height: 1.7;">Дневник пуст.<br>Диалоги после 2 часов тишины будут появляться здесь архивом.</div></div>');
+  if (toolbar) toolbar.style.display = diaryItems.length > 0 ? 'flex' : 'none';
+  document.getElementById('addEntryBtn').style.display = document.getElementById('screen-diary').classList.contains('active') && diaryItems.length > 0 ? 'flex' : 'none';
+  document.getElementById('diaryDot').style.display = diaryItems.length > 0 ? 'block' : 'none';
   var ec = document.getElementById('eventCount');
-  if (ec) ec.textContent = events.length;
+  if (ec) ec.textContent = diaryItems.length;
   updatePatternCount();
 }
 
 function clearDiaryEntries() {
-  if (!events.length) return;
-  if (!confirm('Очистить все записи дневника?')) return;
+  if (!events.length && !archivedChats.length) return;
+  if (!confirm('Очистить все записи и архивы дневника?')) return;
   events = [];
+  archivedChats = [];
   updateDiary();
   saveToStorage();
   var detail = document.getElementById('diaryDetail');
@@ -2814,10 +2933,52 @@ function openDiaryEntry(index) {
   switchScreen('diary-detail');
 }
 
+function openChatArchive(index) {
+  var archive = archivedChats[index];
+  if (!archive) return;
+
+  var started = new Date(archive.startedAt || archive.endedAt || Date.now());
+  var ended = new Date(archive.endedAt || archive.startedAt || Date.now());
+  var detail = document.getElementById('diaryDetail');
+  var messages = (archive.messages || []).map(function(item) {
+    var label = item.type === 'user' ? 'Ты' : (item.type === 'oracle' ? 'Велес' : 'Система');
+    var ts = item.ts ? new Date(item.ts) : ended;
+    return '<div class="detail-meta-row" style="display:block;">' +
+      '<span>' + escapeHtml(label) + ' • ' + escapeHtml(formatDiaryDate(ts)) + '</span>' +
+      '<div style="margin-top:8px;color:#d7d0ea;line-height:1.65;white-space:pre-wrap;">' + escapeHtml(item.text || '') + '</div>' +
+      (item.meta ? '<div style="margin-top:6px;color:#75679c;font-size:12px;">' + escapeHtml(item.meta) + '</div>' : '') +
+    '</div>';
+  }).join('');
+
+  detail.innerHTML =
+    '<button class="detail-back" onclick="switchScreen(&quot;diary&quot;)">← Назад</button>' +
+    '<div class="detail-card">' +
+      '<div class="detail-label">Архив диалога</div>' +
+      '<div class="detail-date">' + escapeHtml(archive.title || 'Оракул') + '</div>' +
+      '<div class="detail-text">Начало: ' + escapeHtml(formatDiaryDate(started)) + '<br>Конец: ' + escapeHtml(formatDiaryDate(ended)) + '</div>' +
+      '<div class="detail-meta">' + messages + '</div>' +
+    '</div>' +
+    '<div class="detail-actions">' +
+      '<button class="detail-action-btn secondary" onclick="switchScreen(&quot;diary&quot;)">К списку</button>' +
+      '<button class="detail-action-btn danger" onclick="deleteChatArchive(' + index + ')">Удалить архив</button>' +
+    '</div>';
+
+  switchScreen('diary-detail');
+}
+
 function deleteDiaryEntry(index) {
   if (!events[index]) return;
   if (!confirm('Удалить эту запись из дневника?')) return;
   events.splice(index, 1);
+  updateDiary();
+  saveToStorage();
+  switchScreen('diary');
+}
+
+function deleteChatArchive(index) {
+  if (!archivedChats[index]) return;
+  if (!confirm('Удалить этот архив диалога?')) return;
+  archivedChats.splice(index, 1);
   updateDiary();
   saveToStorage();
   switchScreen('diary');
@@ -2901,6 +3062,7 @@ async function shareLink() {
 }
 
 function switchScreen(name) {
+  archiveExpiredChats(Date.now(), true);
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById('screen-' + name).classList.add('active');
   var tabs = ['oracle','diary','bonds','profile'];
@@ -2928,6 +3090,10 @@ document.getElementById('birthInput').addEventListener('input', function() {
 if (loadFromStorage()) {
   startApp(true);
 }
+
+setInterval(function() {
+  archiveExpiredChats(Date.now(), true);
+}, 60000);
 </script>
 
 </body>
