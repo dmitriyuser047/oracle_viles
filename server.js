@@ -5,9 +5,9 @@ const fs = require('fs');
 
 const envPath = path.join(__dirname, '.env');
 if (fs.existsSync(envPath)) {
-  fs.readFileSync(envPath, 'utf8').split('\n').forEach(function(line) {
-    var match = line.match(/^([^=]+)=(.*)$/);
-    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].trim();
+fs.readFileSync(envPath, 'utf8').split('\n').forEach(function(line) {
+    var match = line.trim().match(/^([^=]+)=(.*)$/);
+    if (match && match[1]) process.env[match[1].trim()] = match[2].trim();
   });
 }
 
@@ -16,8 +16,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'groq').toLowerCase();
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
+const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01';
 const KNOWLEDGE_DIR = path.join(__dirname, 'knowledge');
 
 function loadKnowledgeFile(fileName) {
@@ -81,6 +87,7 @@ function polishReply(text) {
     .replace(/([.!?])(?=[А-ЯЁ])/g, '$1 ')
     .replace(/([а-яё])([А-ЯЁ])/g, '$1 $2')
     .replace(/\s*(\*\*[^*]+\*\*)\s*/g, '\n\n$1\n')
+    .replace(/\*([^*\n]+)\*/g, '$1')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
@@ -159,6 +166,7 @@ function cleanGrammarReply(text) {
     .replace(/\bслишком мало действуй\b/gi, 'слишком мало действуешь')
     .replace(/\bты рискуешь потерять энергию на то, чтобы просто жить\b/gi, 'ты рискуешь тратить энергию вместо того, чтобы просто жить')
     .replace(/\bчто происходит\?/gi, 'что происходит?')
+    .replace(/([.!?]\s+)что я /gi, '$1Что я ')
     .replace(/(^|[^А-Яа-яЁё])Вас(?=$|[^А-Яа-яЁё])/g, '$1тебя')
     .replace(/(^|[^А-Яа-яЁё])вас(?=$|[^А-Яа-яЁё])/g, '$1тебя')
     .replace(/(^|[^А-Яа-яЁё])Вам(?=$|[^А-Яа-яЁё])/g, '$1тебе')
@@ -191,6 +199,10 @@ function cleanExternalReferencesReply(text, b) {
   var cardAsked = /карт[ауы] дня|таро|аркан|расклад/i.test(message);
   var dailyTarot = String(b?.dailyTarot || '').trim();
   var dailyRune = String(b?.dailyRune || '').trim();
+  var dailyTarotName = dailyTarot.split(/[—-]/)[0].trim();
+  var dailyRuneName = dailyRune.replace(/^[^\s]+\s+/, '').split(/[—-]/)[0].trim();
+  var dailyTarotStem = dailyTarotName.length > 4 ? dailyTarotName.slice(0, -1).toLowerCase() : '';
+  var dailyRuneStem = dailyRuneName.length > 4 ? dailyRuneName.slice(0, -1).toLowerCase() : '';
   var sourcePatterns = [
     /источник/i,
     /ссылк/i,
@@ -206,7 +218,11 @@ function cleanExternalReferencesReply(text, b) {
     /исходя из карт[ыи] дня/i,
     /карт[ауы] дня показывает/i,
     /главная карт[ауы] дня/i,
-    /в карт[еы] дня видно/i
+    /в карт[еы] дня видно/i,
+    /карт[ауы]\s+тебе\s+шепч/i,
+    /карт[ауы]\s+говор/i,
+    /карт[ауы]\s+указывает/i,
+    /в\s+карт[еы]\s+видно/i
   ];
 
   var cleaned = splitSentences(reply)
@@ -216,11 +232,25 @@ function cleanExternalReferencesReply(text, b) {
         if (cardSourcePatterns.some(function(pattern) { return pattern.test(sentence); })) return false;
         if (dailyTarot && sentence.toLowerCase().includes(dailyTarot.toLowerCase())) return false;
         if (dailyRune && sentence.toLowerCase().includes(dailyRune.toLowerCase())) return false;
+        if (dailyTarotName && sentence.toLowerCase().includes(dailyTarotName.toLowerCase())) return false;
+        if (dailyRuneName && sentence.toLowerCase().includes(dailyRuneName.toLowerCase())) return false;
+        if (dailyTarotStem && sentence.toLowerCase().includes(dailyTarotStem)) return false;
+        if (dailyRuneStem && sentence.toLowerCase().includes(dailyRuneStem)) return false;
         if (/(эта|данная|главная)\s+карт[ауы]|аркана?|рун[аы]/i.test(sentence)) return false;
       }
       return true;
     })
     .join(' ');
+
+  if (b?.requestMode === 'oracle' && !cardAsked) {
+    cleaned = cleaned
+      .replace(/\bОна показывает, что\b/g, 'В ситуации видно, что')
+      .replace(/\bона показывает, что\b/g, 'в ситуации видно, что')
+      .replace(/\bОна говорит\b/g, 'Внутренний голос говорит')
+      .replace(/\bона говорит\b/g, 'внутренний голос говорит')
+      .replace(/\bОна шепчет\b/g, 'Внутренний голос шепчет')
+      .replace(/\bона шепчет\b/g, 'внутренний голос шепчет');
+  }
 
   return cleaned.length > 120 ? cleaned : reply;
 }
@@ -442,6 +472,15 @@ function ensureNameOpening(text, b) {
 
   var lowered = reply.charAt(0).toLowerCase() + reply.slice(1);
   return `${name}, ${lowered}`;
+}
+
+function cleanMarkdownReply(text) {
+  return String(text || '')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/__([^_\n]+)__/g, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    .replace(/^[ \t]*:[ \t]*/gm, '');
 }
 
 function truncateText(value, maxLen) {
@@ -762,6 +801,121 @@ function getMaxTokensForMode(mode) {
   return 1050;
 }
 
+function getProviderOrder() {
+  if (AI_PROVIDER === 'anthropic' || AI_PROVIDER === 'claude') {
+    return ['anthropic', 'groq'];
+  }
+  if (AI_PROVIDER === 'groq') {
+    return ['groq', 'anthropic'];
+  }
+  return ['groq', 'anthropic'];
+}
+
+function providerHasKey(provider) {
+  if (provider === 'anthropic') return Boolean(ANTHROPIC_API_KEY);
+  if (provider === 'groq') return Boolean(GROQ_API_KEY);
+  return false;
+}
+
+async function requestGroq(systemText, userMessage, maxTokens) {
+  const body = JSON.stringify({
+    model: GROQ_MODEL,
+    messages: [
+      { role: 'system', content: systemText },
+      { role: 'user', content: userMessage }
+    ],
+    temperature: 0.7,
+    max_tokens: maxTokens
+  });
+
+  const response = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + GROQ_API_KEY
+    },
+    body
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    const error = new Error(err || `Groq API error ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function requestAnthropic(systemText, userMessage, maxTokens) {
+  const body = JSON.stringify({
+    model: ANTHROPIC_MODEL,
+    system: systemText,
+    messages: [
+      { role: 'user', content: userMessage }
+    ],
+    temperature: 0.7,
+    max_tokens: maxTokens
+  });
+
+  const response = await fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': ANTHROPIC_VERSION
+    },
+    body
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    const error = new Error(err || `Anthropic API error ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const data = await response.json();
+  return (data.content || [])
+    .filter((part) => part && part.type === 'text')
+    .map((part) => part.text || '')
+    .join('\n')
+    .trim();
+}
+
+async function requestAI(systemText, userMessage, maxTokens) {
+  const providers = getProviderOrder().filter(providerHasKey);
+  if (!providers.length) {
+    const error = new Error('AI ключ не настроен. Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env');
+    error.status = 500;
+    throw error;
+  }
+
+  let lastError = null;
+  for (const provider of providers) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const text = provider === 'anthropic'
+          ? await requestAnthropic(systemText, userMessage, maxTokens)
+          : await requestGroq(systemText, userMessage, maxTokens);
+        if (text) return { provider, text };
+        throw new Error(provider + ' returned empty reply');
+      } catch (err) {
+        lastError = err;
+        const isRateLimit = err.status === 429;
+        const wait = isRateLimit ? Math.min((attempt + 1) * 2000, 5000) : (attempt + 1) * 1500;
+        console.error(`${provider} error (attempt ${attempt + 1}/3):`, err.message);
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, wait));
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error('AI не ответил');
+}
+
 function sectionText(title, items) {
   if (!items || !items.length) return '';
   return `${title}\n` + items.map((item) => `- ${item}`).join('\n');
@@ -996,8 +1150,8 @@ app.post('/api/oracle', async (req, res) => {
   try {
     const b = req.body;
 
-    if (!GROQ_API_KEY) {
-      return res.status(500).json({ error: 'API ключ не настроен. Добавь GROQ_API_KEY в .env' });
+    if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
+      return res.status(500).json({ error: 'AI ключ не настроен. Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env' });
     }
 
     const requestMode = b.requestMode === 'tarot_spread'
@@ -1144,61 +1298,8 @@ app.post('/api/oracle', async (req, res) => {
       return `Меня зовут ${b.userName}. Мой знак зодиака: ${b.zodiac}. Карта дня: ${b.dailyTarot}. Руна дня: ${b.dailyRune}. Мой вопрос: ${compactMessage}`;
     })();
 
-    const groqBody = JSON.stringify({
-      model: 'qwen/qwen3.8-27b',
-      messages: [
-        { role: 'system', content: systemText },
-        { role: 'user', content: userMessage }
-      ],
-      temperature: 0.7,
-      max_tokens: getMaxTokensForMode(b.requestMode)
-    });
-
-    let data = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const response = await fetch(GROQ_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + GROQ_API_KEY
-          },
-          body: groqBody
-        });
-
-        if (response.status === 429) {
-          const wait = Math.min((attempt + 1) * 2000, 5000);
-          console.warn(`Groq rate limit (attempt ${attempt + 1}/3), waiting ${wait}ms...`);
-          await new Promise(r => setTimeout(r, wait));
-          continue;
-        }
-
-        if (!response.ok) {
-          const err = await response.text();
-          console.error(`Groq error (attempt ${attempt + 1}/3):`, err);
-          if (attempt < 2) {
-            await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
-            continue;
-          }
-          return res.status(500).json({ error: 'Ошибка Groq API' });
-        }
-
-        data = await response.json();
-        break;
-      } catch (fetchErr) {
-        console.error(`Groq fetch error (attempt ${attempt + 1}/3):`, fetchErr.message);
-        if (attempt < 2) {
-          await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
-          continue;
-        }
-        return res.status(500).json({ error: 'Ошибка связи с AI' });
-      }
-    }
-
-    if (!data) {
-      return res.status(500).json({ error: 'AI не ответил после 3 попыток' });
-    }
-    let rawReply = data.choices?.[0]?.message?.content || 'Звёзды молчат... Попробуй позже.';
+    const aiResult = await requestAI(systemText, userMessage, getMaxTokensForMode(b.requestMode));
+    let rawReply = aiResult.text || 'Звёзды молчат... Попробуй позже.';
     rawReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     if (!rawReply) rawReply = 'Звёзды молчат... Попробуй позже.';
     if (b.userName) {
@@ -1211,8 +1312,8 @@ app.post('/api/oracle', async (req, res) => {
       rawReply = rawReply.replace(/пустот[а-яё]*\s+запроса[^.]*\./gi, '');
     }
     const cleanedReply = cleanExternalReferencesReply(cleanGrammarReply(ensureNameOpening(cleanBondReply(cleanDialogueEnergyReply(cleanUnrequestedLayerReply(cleanNonCrisisClinicalReply(cleanMoonPositionReply(cleanTotemReply(cleanRuneReply(rawReply, b), b), b), b), b), b), b), b)), b);
-    const reply = polishReply(cleanGrammarReply(ensureNameOpening(cleanedReply, b)));
-    console.log('Groq reply:', reply);
+    const reply = polishReply(cleanMarkdownReply(cleanGrammarReply(ensureNameOpening(cleanedReply, b))));
+    console.log(aiResult.provider + ' reply:', reply);
 
     res.json({ reply });
   } catch (err) {
@@ -1225,9 +1326,16 @@ const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log('');
   console.log('  ✦ Велес запущен: http://localhost:' + PORT);
+  console.log('  AI_PROVIDER=' + AI_PROVIDER + ', primary model=' + (AI_PROVIDER === 'anthropic' || AI_PROVIDER === 'claude' ? ANTHROPIC_MODEL : GROQ_MODEL));
   console.log('');
-  if (!GROQ_API_KEY) {
-    console.log('  ⚠ GROQ_API_KEY не задан! Добавь в .env файл.');
+  if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
+    console.log('  ⚠ AI ключ не задан! Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env файл.');
+    console.log('');
+  } else if ((AI_PROVIDER === 'anthropic' || AI_PROVIDER === 'claude') && !ANTHROPIC_API_KEY) {
+    console.log('  ⚠ ANTHROPIC_API_KEY не задан, будет использован Groq если доступен.');
+    console.log('');
+  } else if (AI_PROVIDER === 'groq' && !GROQ_API_KEY) {
+    console.log('  ⚠ GROQ_API_KEY не задан, будет использован Claude если доступен.');
     console.log('');
   }
 });

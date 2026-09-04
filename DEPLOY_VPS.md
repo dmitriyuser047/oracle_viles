@@ -32,7 +32,11 @@ nano .env
 В `.env` нужно указать настоящий ключ:
 
 ```bash
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=твой_ключ_claude
+ANTHROPIC_MODEL=claude-haiku-4-5
 GROQ_API_KEY=твой_ключ_groq
+GROQ_MODEL=qwen/qwen3.8-27b
 PORT=3000
 ```
 

@@ -43,8 +43,11 @@ npm start
 http://localhost:3000
 ```
 
-Для работы AI нужен ключ Groq в `.env`:
+Для работы AI нужен ключ провайдера в `.env`. По умолчанию можно использовать Claude, а Groq оставить запасным:
 
 ```text
-GROQ_API_KEY=your_key_here
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=your_claude_key_here
+ANTHROPIC_MODEL=claude-haiku-4-5
+GROQ_API_KEY=your_groq_key_here
 ```
