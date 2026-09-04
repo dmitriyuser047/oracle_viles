@@ -155,15 +155,17 @@ var waiteTarotDeck = [
 
 function birthTarot(lifePath) {
   var num = lifePath;
-  if (num === 22) return tarotMajor[0]; // Мастер 22 = Шут
-  while (num > 21) num = reduceNum(num);
+  if (num === 22) return tarotMajor[0];
+  if (num > 21) num = String(num).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  if (num > 21) num = num % 22;
   return tarotMajor[num];
 }
 
 function yearTarot(bDay, bMonth) {
   var py = personalYear(bDay, bMonth);
   var num = py;
-  while (num > 21) num = reduceNum(num);
+  if (num > 21) num = String(num).split('').reduce(function(a,b) { return a + parseInt(b); }, 0);
+  if (num > 21) num = num % 22;
   return tarotMajor[num];
 }
 
