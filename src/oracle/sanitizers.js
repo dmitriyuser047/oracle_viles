@@ -324,6 +324,58 @@ function cleanUnrequestedLayerReply(text, b) {
   return cleaned.length > 250 ? cleaned : reply;
 }
 
+function cleanHiddenModelTermsReply(text, b) {
+  var reply = String(text || '');
+  var message = String(b?.message || '');
+  var focus = [
+    message,
+    b?.profileFocus?.section || '',
+    b?.profileFocus?.label || '',
+    b?.profileFocus?.value || '',
+    b?.matrixFocus?.label || ''
+  ].join(' ');
+  var directRequest = /моносов|атлантид|точк[аи]\s+сборк|сефир|дерев[оа]\s+сефир|каст[аы]|эгрегор|фаербол|договор|кокон/i.test(focus);
+  if (directRequest) return reply;
+
+  var forbidden = [
+    /Моносов/i,
+    /Атлантид/i,
+    /точк[аи]\s+сборк/i,
+    /ТС\b/i,
+    /фаербол/i,
+    /каст[аы]/i,
+    /эгрегор/i,
+    /Договор/i,
+    /ментальн[а-яё\s]+план/i,
+    /астральн[а-яё\s]+план/i,
+    /эфирн[а-яё\s]+план/i,
+    /кокон/i,
+    /Союзник[а-яё]*/i
+  ];
+
+  var cleaned = splitSentences(reply)
+    .filter(function(sentence) {
+      return !forbidden.some(function(pattern) { return pattern.test(sentence); });
+    })
+    .join(' ');
+
+  return cleaned.length > 180 ? cleaned : reply
+    .replace(/по\s+модел[иью]\s+Моносова/gi, '')
+    .replace(/модель\s+Моносова/gi, 'внутренняя карта')
+    .replace(/Моносов[а-яё]*/gi, '')
+    .replace(/школ[аы]\s+Атлантид[а-яё]*/gi, '')
+    .replace(/Точка Сборки/g, 'точка внимания')
+    .replace(/точка сборки/gi, 'точка внимания')
+    .replace(/\bТС\b/g, 'внимание')
+    .replace(/астральн[а-яё\s]+план[а-яё]*/gi, 'образное восприятие')
+    .replace(/ментальн[а-яё\s]+план[а-яё]*/gi, 'уровень смысла')
+    .replace(/эфирн[а-яё\s]+план[а-яё]*/gi, 'телесный уровень')
+    .replace(/каст[аы]/gi, 'ступень опыта')
+    .replace(/Договор/g, 'общие правила')
+    .replace(/кокон/gi, 'личные границы')
+    .replace(/эгрегор/gi, 'давление среды');
+}
+
 function cleanDialogueEnergyReply(text, b) {
   var reply = String(text || '');
   if (!b || b.requestMode !== 'dialogue_energy') return reply;
@@ -410,6 +462,7 @@ module.exports = {
   cleanTotemReply,
   cleanMoonPositionReply,
   cleanUnrequestedLayerReply,
+  cleanHiddenModelTermsReply,
   cleanDialogueEnergyReply,
   cleanBondReply,
   ensureNameOpening,

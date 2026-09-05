@@ -12,6 +12,7 @@ function loadKnowledgeFile(fileName) {
 }
 
 const MONOSOV_KNOWLEDGE = loadKnowledgeFile('monosov_esoteric.json');
+const MONOSOV_MODEL_KNOWLEDGE = loadKnowledgeFile('monosov_model.json');
 const MENSHIKOVA_RUNES_KNOWLEDGE = loadKnowledgeFile('menshikova_runes.json');
 const ASTRO_NUMEROLOGY_KNOWLEDGE = loadKnowledgeFile('astro_numerology.json');
 const DREAM_SYMBOLS_KNOWLEDGE = loadKnowledgeFile('dream_symbols.json');
@@ -89,6 +90,49 @@ function formatRoutingKnowledge(mode) {
   ].filter(Boolean).join('\n\n');
 }
 
+function formatMonosovModelKnowledge(b) {
+  if (!MONOSOV_MODEL_KNOWLEDGE) return '';
+  const mode = b.requestMode || 'oracle';
+  const message = normalizeText(b.message);
+  const section = normalizeText(b.profileFocus?.section);
+  const label = normalizeText(b.profileFocus?.label);
+  const value = normalizeText(b.profileFocus?.value);
+  const focus = `${section} ${label} ${value} ${message}`;
+  const directTheoryRequest = /моносов|атлантид|точк[аи]\s+сборк|сефир|дерев[оа]\s+сефир|каст[аы]|эгрегор|фаербол|fireball|договор/i.test(focus);
+  const needsHiddenLens = [
+    'oracle',
+    'dream_interpretation',
+    'dialogue_energy',
+    'dialogue_analysis',
+    'profile_item',
+    'matrix_arcana',
+    'bond_analysis'
+  ].includes(mode);
+
+  if (!needsHiddenLens && !directTheoryRequest) return '';
+
+  const modeLens = (MONOSOV_MODEL_KNOWLEDGE.mode_lenses?.[mode] || []).slice(0, 3);
+  const rules = directTheoryRequest
+    ? MONOSOV_MODEL_KNOWLEDGE.rules
+    : MONOSOV_MODEL_KNOWLEDGE.rules.slice(0, 3);
+  const mapItems = directTheoryRequest
+    ? MONOSOV_MODEL_KNOWLEDGE.plain_language_map
+    : [];
+  const diagnosticFrame = directTheoryRequest
+    ? MONOSOV_MODEL_KNOWLEDGE.diagnostic_frame
+    : MONOSOV_MODEL_KNOWLEDGE.diagnostic_frame.slice(0, 3);
+  const answerShape = MONOSOV_MODEL_KNOWLEDGE.answer_shape.slice(0, 4);
+
+  return [
+    sectionText('Внутренняя модель анализа', rules),
+    modeLens.length ? sectionText('Фокус текущего режима', modeLens) : '',
+    sectionText('Как переводить термины в человеческий язык', (mapItems || []).map((item) => `${item.internal} -> ${item.public}`)),
+    sectionText('Контур диагностики', diagnosticFrame),
+    sectionText('Форма ответа', answerShape),
+    sectionText('Ограничения безопасности', MONOSOV_MODEL_KNOWLEDGE.safety)
+  ].filter(Boolean).join('\n\n');
+}
+
 function formatTarotKnowledge(b) {
   if (!TAROT_WAITE_KNOWLEDGE) return '';
   const cardNames = (b.tarotSpread || [])
@@ -116,12 +160,14 @@ function findNumberProfile(value) {
 }
 
 function selectMonosovKnowledge(b) {
-  if (!MONOSOV_KNOWLEDGE && !MENSHIKOVA_RUNES_KNOWLEDGE && !ASTRO_NUMEROLOGY_KNOWLEDGE && !DREAM_SYMBOLS_KNOWLEDGE && !TAROT_WAITE_KNOWLEDGE && !DIALOGUE_PATTERNS_KNOWLEDGE && !PSYCHOLOGY_MODELS_KNOWLEDGE && !ESOTERIC_ROUTING_KNOWLEDGE) return 'Дополнительные опоры не подключены';
+  if (!MONOSOV_KNOWLEDGE && !MONOSOV_MODEL_KNOWLEDGE && !MENSHIKOVA_RUNES_KNOWLEDGE && !ASTRO_NUMEROLOGY_KNOWLEDGE && !DREAM_SYMBOLS_KNOWLEDGE && !TAROT_WAITE_KNOWLEDGE && !DIALOGUE_PATTERNS_KNOWLEDGE && !PSYCHOLOGY_MODELS_KNOWLEDGE && !ESOTERIC_ROUTING_KNOWLEDGE) return 'Дополнительные опоры не подключены';
 
   const mode = b.requestMode || 'oracle';
+  const hiddenModel = formatMonosovModelKnowledge(b);
   if (mode === 'dialogue_analysis') {
     return [
       formatRoutingKnowledge(mode),
+      hiddenModel,
       'Правила разбора переписки',
       '- Сначала отделить факт текста от догадки о мотивах.',
       '- Смотреть на тон: тепло, холод, интерес, избегание, давление, обида, флирт, просьба, проверка границ.',
@@ -135,6 +181,7 @@ function selectMonosovKnowledge(b) {
   if (mode === 'dialogue_energy') {
     return [
       formatRoutingKnowledge(mode),
+      hiddenModel,
       'Правила энергетики диалога',
       '- Читать контакт как обмен вниманием, телесной реакцией, голосом, сердцем, границами и желанием сближения.',
       '- Чакры описывать простыми словами: тело, желание, воля, сердце, голос, видение, смысл.',
@@ -146,6 +193,7 @@ function selectMonosovKnowledge(b) {
   if (mode === 'dream_interpretation') {
     return [
       formatRoutingKnowledge(mode),
+      hiddenModel,
       formatDreamKnowledge(b),
       formatPsychologyKnowledge(b, 3)
     ].filter(Boolean).join('\n\n');
@@ -168,6 +216,7 @@ function selectMonosovKnowledge(b) {
 
   const routing = formatRoutingKnowledge(mode);
   if (routing) blocks.push(routing);
+  if (hiddenModel) blocks.push(hiddenModel);
 
   if (ASTRO_NUMEROLOGY_KNOWLEDGE && wantsAstrology) {
     blocks.push(sectionText('Правила астрологии и нумерологии', ASTRO_NUMEROLOGY_KNOWLEDGE.rules));

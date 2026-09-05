@@ -6,6 +6,7 @@ const {
   cleanTotemReply,
   cleanMoonPositionReply,
   cleanUnrequestedLayerReply,
+  cleanHiddenModelTermsReply,
   cleanDialogueEnergyReply,
   cleanBondReply,
   ensureNameOpening,
@@ -42,9 +43,12 @@ function cleanOracleReply(text, b) {
         cleanBondReply(
           cleanDialogueEnergyReply(
             cleanUnrequestedLayerReply(
-              cleanNonCrisisClinicalReply(
-                cleanMoonPositionReply(
-                  cleanTotemReply(cleanRuneReply(rawReply, b), b),
+              cleanHiddenModelTermsReply(
+                cleanNonCrisisClinicalReply(
+                  cleanMoonPositionReply(
+                    cleanTotemReply(cleanRuneReply(rawReply, b), b),
+                    b
+                  ),
                   b
                 ),
                 b
