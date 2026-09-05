@@ -32,6 +32,19 @@ function isLoggedIn() {
   return !!authToken && !!currentUser;
 }
 
+function applyCurrentUserProfile(force) {
+  if (!currentUser) return false;
+  var nextName = String(currentUser.name || '').trim();
+  var nextBirth = currentUser.birthDate || currentUser.birth_date || '';
+  if (!nextName || !nextBirth) return false;
+  if (!force && userName && userBirthValue && userName !== 'Странник') return false;
+
+  userName = nextName;
+  userBirthValue = nextBirth;
+  userBirth = new Date(nextBirth);
+  return true;
+}
+
 function applyUsageStatus(usage) {
   if (!usage || !currentUser) return;
   currentUser.todayRequests = usage.todayRequests || 0;
@@ -120,18 +133,15 @@ async function submitAuth() {
     saveAuth();
 
     if (mode === 'register') {
-      userName = currentUser.name;
-      userBirthValue = currentUser.birthDate;
-      userBirth = new Date(currentUser.birthDate);
+      applyCurrentUserProfile(true);
       startApp();
     } else {
       await loadServerData();
+      applyCurrentUserProfile(true);
       if (userName && userBirthValue) {
         startApp(true);
       } else {
-        userName = currentUser.name;
-        userBirthValue = currentUser.birthDate;
-        userBirth = new Date(currentUser.birthDate);
+        applyCurrentUserProfile(true);
         startApp();
       }
     }
@@ -194,6 +204,7 @@ async function loadServerData() {
     if (meResp.ok) {
       var meData = await meResp.json();
       if (meData.user) currentUser = Object.assign(currentUser, meData.user);
+      applyCurrentUserProfile(true);
       if (meData.usage) applyUsageStatus(meData.usage);
     }
 

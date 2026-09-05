@@ -4,6 +4,30 @@
     max-height: min(46dvh, 430px);
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155,217,255,0.28) rgba(4,8,14,0.72);
+  }
+  .chat-area::-webkit-scrollbar,
+  .profile-content::-webkit-scrollbar,
+  .diary-list::-webkit-scrollbar,
+  .diary-detail::-webkit-scrollbar,
+  .bonds-content::-webkit-scrollbar {
+    width: 6px;
+  }
+  .chat-area::-webkit-scrollbar-track,
+  .profile-content::-webkit-scrollbar-track,
+  .diary-list::-webkit-scrollbar-track,
+  .diary-detail::-webkit-scrollbar-track,
+  .bonds-content::-webkit-scrollbar-track {
+    background: rgba(4,8,14,0.72);
+  }
+  .chat-area::-webkit-scrollbar-thumb,
+  .profile-content::-webkit-scrollbar-thumb,
+  .diary-list::-webkit-scrollbar-thumb,
+  .diary-detail::-webkit-scrollbar-thumb,
+  .bonds-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(155,217,255,0.34), rgba(224,189,122,0.22));
+    border-radius: 999px;
   }
   .msg { margin-bottom: 14px; animation: fadeUp 0.5s ease; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -116,24 +140,23 @@
   }
   /* Depth & Tone settings */
   .oracle-settings {
-    padding: 10px 16px 0; display: flex; gap: 16px; align-items: center;
-    flex-wrap: wrap;
+    padding: 8px 16px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    align-items: center;
   }
-  .setting-group {
-    display: flex; align-items: center; gap: 6px;
-  }
+  .setting-group { min-width: 0; }
   .setting-label {
+    display: none;
     font-size: 10px; color: var(--dim); letter-spacing: 1px;
     text-transform: uppercase; white-space: nowrap;
   }
   .setting-pills {
-    display: flex; gap: 4px;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
   }
   .pill {
-    height: 28px; padding: 0 10px; border-radius: 14px;
+    height: 28px; padding: 0 6px; border-radius: 8px;
     border: 1px solid rgba(197,154,92,0.12);
     background: rgba(255,255,255,0.025); color: var(--dim);
-    font-size: 11.5px; font-family: inherit; cursor: pointer;
+    font-size: 10.5px; font-family: inherit; cursor: pointer;
     transition: all 0.2s; white-space: nowrap;
   }
   .pill.active {
@@ -143,15 +166,28 @@
   .pill:active { transform: scale(0.95); }
 
   .oracle-modes {
-    padding: 12px 16px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    padding: 10px 16px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px;
   }
   #modeDream { grid-column: 1 / -1; }
   .mode-btn {
-    height: 38px; border-radius: 8px; border: 1px solid rgba(197,154,92,0.14);
+    height: 36px; border-radius: 8px; border: 1px solid rgba(197,154,92,0.14);
     background: rgba(255,255,255,0.035); color: var(--muted); font-size: 13px;
     font-family: inherit; cursor: pointer; transition: all 0.2s;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
+  .mode-btn::before {
+    content: '◌';
+    color: var(--teal);
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.82;
+  }
+  #modeOracle::before { content: '◉'; }
+  #modeTarot::before { content: 'III'; font-size: 10px; letter-spacing: 0.5px; }
+  #modeDialogue::before { content: '≡'; font-size: 14px; }
+  #modeDialogueEnergy::before { content: '◇'; }
+  #modeDream::before { content: '◐'; }
   .mode-btn.active {
     color: #fff4d8; border-color: rgba(224,189,122,0.46);
     background: linear-gradient(135deg, rgba(197,154,92,0.22), rgba(88,116,95,0.14));
@@ -218,6 +254,122 @@
     position: absolute; top: 4px; right: 12px;
     width: 6px; height: 6px; background: var(--teal);
     border-radius: 50%; display: none;
+  }
+
+  @media (max-width: 899px) {
+    #screen-oracle .header {
+      padding: 48px 20px 12px;
+    }
+
+    #screen-oracle .header-title {
+      font-size: 28px;
+    }
+
+    #screen-oracle .header-sub {
+      margin-top: 2px;
+      font-size: 12.5px;
+    }
+
+    .chat-area {
+      padding-top: 12px;
+      max-height: min(44dvh, 390px);
+      scrollbar-width: none;
+    }
+
+    .chat-area::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+    .oracle-settings {
+      padding-top: 6px;
+      gap: 6px;
+    }
+
+    .setting-pills {
+      gap: 3px;
+    }
+
+    .pill {
+      position: relative;
+      height: 26px;
+      padding: 0 2px;
+      font-size: 9px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: transparent;
+    }
+
+    .pill.active {
+      color: transparent;
+    }
+
+    .pill::after {
+      content: attr(data-short);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dim);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .pill.active::after {
+      color: #fff4d8;
+    }
+
+    .oracle-modes {
+      padding-top: 8px;
+      gap: 6px;
+    }
+
+    .mode-btn {
+      height: 34px;
+      font-size: 12.5px;
+      gap: 6px;
+    }
+
+    .input-bar {
+      padding: 6px 16px 18px;
+      gap: 8px;
+    }
+
+    .input-bar input {
+      padding: 11px 16px;
+      font-size: 14px;
+    }
+
+    .send-btn {
+      width: 42px;
+      height: 42px;
+    }
+
+    .nav {
+      padding: 6px 8px 16px;
+    }
+
+    .nav-item {
+      padding: 5px 10px;
+    }
+
+    .nav-item svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    @media (max-height: 760px) {
+      .chat-area {
+        max-height: min(39dvh, 320px);
+      }
+
+      .nav {
+        padding-bottom: 12px;
+      }
+    }
   }
 
   /* Onboarding */
@@ -692,12 +844,12 @@
     background: linear-gradient(145deg, rgba(24,31,27,0.95) 0%, rgba(10,13,12,0.95) 100%);
     border: 1px solid rgba(197,154,92,0.22);
     border-radius: 8px;
-    padding: 20px 18px; margin-bottom: 16px;
+    padding: 16px 18px; margin-bottom: 14px;
     animation: fadeUp 0.6s ease;
   }
   .forecast-header {
     font-size: 9px; letter-spacing: 3px; color: var(--copper);
-    text-transform: uppercase; margin-bottom: 14px;
+    text-transform: uppercase; margin-bottom: 12px;
     display: flex; align-items: center; gap: 8px;
   }
   .forecast-row {
@@ -708,9 +860,9 @@
   .forecast-key { font-size: 12px; color: var(--muted); }
   .forecast-val { font-size: 12px; color: var(--copper-soft); font-weight: 600; }
   .forecast-advice {
-    margin-top: 14px; padding-top: 12px;
+    margin-top: 12px; padding-top: 10px;
     border-top: 1px solid rgba(197,154,92,0.12);
-    font-size: 13.5px; color: #c7c0b2; line-height: 1.65;
+    font-size: 13.5px; color: #c7c0b2; line-height: 1.55;
     font-style: italic;
   }
 
@@ -810,11 +962,28 @@
   }
 
   @media (min-width: 900px) {
+    #screen-oracle.active {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 760px);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      justify-content: center;
+      column-gap: 26px;
+      min-height: 0;
+    }
+
+    #screen-oracle .header {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
     .chat-area {
+      grid-column: 2;
+      grid-row: 2;
       width: min(760px, 100%);
       margin: 0 auto;
       padding: 22px 0 12px;
-      max-height: min(48vh, 440px);
+      max-height: none;
+      min-height: 0;
     }
 
     .msg-oracle {
@@ -826,20 +995,47 @@
     }
 
     .composer {
-      width: min(760px, 100%);
-      margin: 0 auto;
-      background: linear-gradient(transparent 0%, rgba(2,5,10,0.94) 28%);
+      display: contents;
     }
 
-    .oracle-settings,
-    .oracle-modes,
-    .input-bar {
-      padding-left: 0;
-      padding-right: 0;
+    .oracle-settings {
+      grid-column: 1;
+      grid-row: 2 / span 2;
+      align-self: start;
+      display: grid;
+      gap: 12px;
+      padding: 22px 0 0;
+    }
+
+    .setting-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .setting-label {
+      display: block;
+    }
+
+    .setting-pills {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .pill {
+      height: 32px;
+      padding: 0 8px;
+      border-radius: 8px;
+      font-size: 11px;
     }
 
     .oracle-modes {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-column: 1;
+      grid-row: 2;
+      align-self: end;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 136px 0 12px;
     }
 
     #modeDream {
@@ -847,11 +1043,26 @@
     }
 
     .mode-btn {
-      height: 40px;
+      height: 48px;
+      justify-content: flex-start;
+      padding: 0 14px;
+      font-size: 13.5px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+      border-color: rgba(155,217,255,0.14);
+    }
+
+    .mode-btn::before {
+      width: 24px;
+      text-align: center;
     }
 
     .input-bar {
+      grid-column: 2;
+      grid-row: 3;
+      padding-left: 0;
+      padding-right: 0;
       padding-bottom: 22px;
+      background: linear-gradient(transparent 0%, rgba(2,5,10,0.94) 28%);
     }
 
     .nav {

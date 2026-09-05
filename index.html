@@ -10,9 +10,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/assets/icon-192.svg">
-<link rel="stylesheet" href="/assets/css/base.css?v=11">
-<link rel="stylesheet" href="/assets/css/components.css?v=11">
-<link rel="stylesheet" href="/assets/css/theme-midnight.css?v=11">
+<link rel="stylesheet" href="/assets/css/base.css?v=15">
+<link rel="stylesheet" href="/assets/css/components.css?v=15">
+<link rel="stylesheet" href="/assets/css/theme-midnight.css?v=15">
 </head>
 <body>
 
@@ -62,17 +62,17 @@
         <div class="setting-group">
           <span class="setting-label">Глубина</span>
           <div class="setting-pills" id="depthPills">
-            <button class="pill" data-value="brief" onclick="setOracleDepth('brief')">Кратко</button>
-            <button class="pill active" data-value="detailed" onclick="setOracleDepth('detailed')">Подробно</button>
-            <button class="pill" data-value="deep" onclick="setOracleDepth('deep')">Глубоко</button>
+            <button class="pill" data-value="brief" data-short="Кратко" onclick="setOracleDepth('brief')">Кратко</button>
+            <button class="pill active" data-value="detailed" data-short="Подр." onclick="setOracleDepth('detailed')">Подробно</button>
+            <button class="pill" data-value="deep" data-short="Глуб." onclick="setOracleDepth('deep')">Глубоко</button>
           </div>
         </div>
         <div class="setting-group">
           <span class="setting-label">Тон</span>
           <div class="setting-pills" id="tonePills">
-            <button class="pill" data-value="soft" onclick="setOracleTone('soft')">Мягко</button>
-            <button class="pill active" data-value="practical" onclick="setOracleTone('practical')">Практично</button>
-            <button class="pill" data-value="harsh" onclick="setOracleTone('harsh')">Жёстко</button>
+            <button class="pill" data-value="soft" data-short="Мягко" onclick="setOracleTone('soft')">Мягко</button>
+            <button class="pill active" data-value="practical" data-short="Практ." onclick="setOracleTone('practical')">Практично</button>
+            <button class="pill" data-value="harsh" data-short="Жёстко" onclick="setOracleTone('harsh')">Жёстко</button>
           </div>
         </div>
       </div>
@@ -212,14 +212,14 @@
   </div>
 </div>
 
-<script src="/assets/js/00-auth.js?v=11"></script>
-<script src="/assets/js/01-state-storage.js?v=11"></script>
-<script src="/assets/js/02-esoteric-core.js?v=11"></script>
-<script src="/assets/js/03-profile-bonds.js?v=11"></script>
-<script src="/assets/js/04-oracle-symbols.js?v=11"></script>
-<script src="/assets/js/05-profile-render.js?v=11"></script>
-<script src="/assets/js/06-chat-oracle.js?v=11"></script>
-<script src="/assets/js/07-diary-share-nav.js?v=11"></script>
+<script src="/assets/js/00-auth.js?v=15"></script>
+<script src="/assets/js/01-state-storage.js?v=15"></script>
+<script src="/assets/js/02-esoteric-core.js?v=15"></script>
+<script src="/assets/js/03-profile-bonds.js?v=15"></script>
+<script src="/assets/js/04-oracle-symbols.js?v=15"></script>
+<script src="/assets/js/05-profile-render.js?v=15"></script>
+<script src="/assets/js/06-chat-oracle.js?v=15"></script>
+<script src="/assets/js/07-diary-share-nav.js?v=15"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(function() {});

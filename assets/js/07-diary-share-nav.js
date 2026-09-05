@@ -264,8 +264,16 @@ document.getElementById('birthInput').addEventListener('input', function() {
 });
 
 // Автозагрузка при открытии
+var hasAuthProfile = false;
 if (typeof loadAuth === 'function') loadAuth();
-if (loadFromStorage()) {
+var hasStoredProfile = loadFromStorage();
+if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof applyCurrentUserProfile === 'function') {
+  hasAuthProfile = applyCurrentUserProfile(true);
+}
+if (hasStoredProfile || hasAuthProfile) {
+  if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof applyCurrentUserProfile === 'function') {
+    applyCurrentUserProfile(true);
+  }
   startApp(true);
   restoreSettingsPills();
   if (typeof updateAuthUI === 'function') updateAuthUI();
