@@ -1,6 +1,7 @@
 const express = require('express');
 const { stmts } = require('../db');
 const { hashPassword, checkPassword, createToken, authMiddleware } = require('../auth');
+const { isCreatorEmail, getPublicLimit } = require('../creator');
 
 const router = express.Router();
 
@@ -26,6 +27,7 @@ router.post('/api/register', (req, res) => {
   try {
     const result = stmts.createUser.run(emailClean, hashPassword(password), name.trim(), birthDate);
     const token = createToken(result.lastInsertRowid);
+    const isCreator = isCreatorEmail(emailClean);
     res.json({
       token,
       user: {
@@ -33,8 +35,10 @@ router.post('/api/register', (req, res) => {
         email: emailClean,
         name: name.trim(),
         birthDate,
-        plan: 'free',
-        dailyLimit: 15
+        plan: isCreator ? 'creator' : 'free',
+        dailyLimit: isCreator ? null : 15,
+        isCreator,
+        todayRequests: 0
       }
     });
   } catch (err) {
@@ -55,6 +59,7 @@ router.post('/api/login', (req, res) => {
   }
 
   const token = createToken(user.id);
+  const isCreator = isCreatorEmail(user.email);
   res.json({
     token,
     user: {
@@ -62,8 +67,10 @@ router.post('/api/login', (req, res) => {
       email: user.email,
       name: user.name,
       birthDate: user.birth_date,
-      plan: user.plan,
-      dailyLimit: user.daily_limit
+      plan: isCreator ? 'creator' : user.plan,
+      dailyLimit: getPublicLimit(user),
+      isCreator,
+      todayRequests: isCreator ? 0 : stmts.countTodayRequests.get(user.id).cnt
     }
   });
 });
@@ -72,19 +79,23 @@ router.get('/api/me', authMiddleware, (req, res) => {
   const user = stmts.findUserById.get(req.userId);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-  const todayCount = stmts.countTodayRequests.get(req.userId).cnt;
+  const isCreator = isCreatorEmail(user.email);
+  const todayCount = isCreator ? 0 : stmts.countTodayRequests.get(req.userId).cnt;
   res.json({
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
       birthDate: user.birth_date,
-      plan: user.plan,
-      dailyLimit: user.daily_limit
+      plan: isCreator ? 'creator' : user.plan,
+      dailyLimit: getPublicLimit(user),
+      isCreator,
+      todayRequests: todayCount
     },
     usage: {
       todayRequests: todayCount,
-      dailyLimit: user.daily_limit
+      dailyLimit: getPublicLimit(user),
+      unlimited: isCreator
     }
   });
 });

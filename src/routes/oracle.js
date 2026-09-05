@@ -7,6 +7,7 @@ const { buildOraclePayload } = require('../oracle/payload');
 const { cleanOracleReply } = require('../oracle/reply-pipeline');
 const { stmts } = require('../db');
 const { verifyToken } = require('../auth');
+const { isCreatorEmail, getPublicLimit } = require('../creator');
 
 const router = express.Router();
 
@@ -19,18 +20,22 @@ router.post('/api/oracle', async (req, res) => {
     }
 
     let userId = null;
+    let authUser = null;
+    let isCreator = false;
+    let todayCount = 0;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const payload = verifyToken(authHeader.slice(7));
       if (payload) {
         userId = payload.uid;
-        const user = stmts.findUserById.get(userId);
-        if (user) {
-          const todayCount = stmts.countTodayRequests.get(userId).cnt;
-          if (todayCount >= user.daily_limit) {
+        authUser = stmts.findUserById.get(userId);
+        if (authUser) {
+          isCreator = isCreatorEmail(authUser.email);
+          todayCount = isCreator ? 0 : stmts.countTodayRequests.get(userId).cnt;
+          if (!isCreator && todayCount >= authUser.daily_limit) {
             return res.status(429).json({
-              error: 'Дневной лимит исчерпан (' + user.daily_limit + ' запросов). Завтра лимит обновится.',
-              limit: user.daily_limit,
+              error: 'Дневной лимит исчерпан (' + authUser.daily_limit + ' запросов). Завтра лимит обновится.',
+              limit: authUser.daily_limit,
               used: todayCount
             });
           }
@@ -69,10 +74,19 @@ router.post('/api/oracle', async (req, res) => {
     console.log(aiResult.provider + ' reply:', reply);
 
     if (userId) {
-      stmts.logRequest.run(userId, b.requestMode || 'oracle');
+      if (!isCreator) {
+        stmts.logRequest.run(userId, b.requestMode || 'oracle');
+        todayCount += 1;
+      }
     }
 
-    res.json({ reply });
+    const usage = authUser ? {
+      todayRequests: todayCount,
+      dailyLimit: getPublicLimit(authUser),
+      unlimited: isCreator
+    } : null;
+
+    res.json({ reply, usage });
   } catch (err) {
     console.error('Server error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });

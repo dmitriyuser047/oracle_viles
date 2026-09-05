@@ -32,6 +32,15 @@ function isLoggedIn() {
   return !!authToken && !!currentUser;
 }
 
+function applyUsageStatus(usage) {
+  if (!usage || !currentUser) return;
+  currentUser.todayRequests = usage.todayRequests || 0;
+  currentUser.dailyLimit = usage.dailyLimit;
+  currentUser.isCreator = !!usage.unlimited || !!currentUser.isCreator;
+  saveAuth();
+  updateAuthUI();
+}
+
 function showAuthScreen(mode) {
   var nextMode = mode || 'login';
   document.getElementById('screen-auth').classList.add('active');
@@ -149,12 +158,19 @@ function updateAuthUI() {
   var profileAuth = document.getElementById('profileAuthInline') || document.getElementById('profileAuthSection');
   if (!profileAuth) return;
   if (isLoggedIn()) {
+    var used = currentUser.todayRequests || 0;
+    var limit = currentUser.dailyLimit;
+    var limitText = currentUser.isCreator
+      ? 'Без дневного лимита'
+      : (used + ' / ' + (limit || 15) + ' запросов сегодня');
+    var planText = currentUser.isCreator
+      ? 'Создатель'
+      : (currentUser.plan === 'free' ? 'Бесплатный' : 'Премиум');
     profileAuth.innerHTML =
       '<div class="auth-status">' +
         '<div class="auth-status-label">Аккаунт</div>' +
         '<div class="auth-status-email">' + escapeHtml(currentUser.email) + '</div>' +
-        '<div class="auth-status-plan">Тариф: ' + escapeHtml(currentUser.plan === 'free' ? 'Бесплатный' : 'Премиум') +
-          ' (' + (currentUser.dailyLimit || 15) + ' запросов/день)</div>' +
+        '<div class="auth-status-plan">Тариф: ' + escapeHtml(planText) + ' · ' + escapeHtml(limitText) + '</div>' +
         '<button class="auth-logout-btn" onclick="logout()">Выйти</button>' +
       '</div>';
   } else {
@@ -174,6 +190,13 @@ function updateAuthUI() {
 async function loadServerData() {
   if (!isLoggedIn()) return;
   try {
+    var meResp = await fetch('/api/me', { headers: getAuthHeaders() });
+    if (meResp.ok) {
+      var meData = await meResp.json();
+      if (meData.user) currentUser = Object.assign(currentUser, meData.user);
+      if (meData.usage) applyUsageStatus(meData.usage);
+    }
+
     var resp = await fetch('/api/user-data', { headers: getAuthHeaders() });
     if (!resp.ok) return;
     var data = await resp.json();

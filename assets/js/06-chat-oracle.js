@@ -428,6 +428,7 @@ async function askOracle(message, options) {
         }
         if (data.reply) {
           useAI = true;
+          if (typeof applyUsageStatus === 'function') applyUsageStatus(data.usage);
           return data.reply;
         }
         throw new Error('empty reply');
