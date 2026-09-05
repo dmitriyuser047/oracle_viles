@@ -266,6 +266,24 @@
   }
   .start-btn:active { transform: scale(0.97); }
   .start-btn:hover { box-shadow: 0 6px 30px rgba(224,189,122,0.28); }
+  .ghost-start-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(197,154,92,0.16);
+    background: rgba(255,255,255,0.035);
+    color: var(--copper-soft);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ghost-start-btn:active { transform: scale(0.97); }
+  .ghost-start-btn:hover {
+    border-color: rgba(224,189,122,0.34);
+    background: rgba(197,154,92,0.075);
+  }
   .onboarding .hint {
     font-size: 11px; color: var(--dim); margin-top: 20px; line-height: 1.5;
   }
@@ -440,9 +458,72 @@
     padding: 18px; margin-bottom: 12px;
     box-shadow: 0 14px 42px rgba(0,0,0,0.22);
   }
+  .profile-card.profile-accordion {
+    padding: 0;
+    overflow: hidden;
+  }
   .profile-card .card-label {
     font-size: 9px; letter-spacing: 3px; color: var(--copper);
     text-transform: uppercase; margin-bottom: 14px;
+  }
+  .profile-accordion-head {
+    width: 100%;
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    border: 0;
+    background: linear-gradient(135deg, rgba(197,154,92,0.08), rgba(119,196,173,0.035));
+    color: var(--text);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+  .profile-accordion-head:hover {
+    background: linear-gradient(135deg, rgba(197,154,92,0.13), rgba(119,196,173,0.055));
+  }
+  .profile-accordion-title {
+    min-width: 0;
+    color: var(--copper-soft);
+    font-size: 12px;
+    font-weight: 720;
+    letter-spacing: 1.4px;
+    line-height: 1.25;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .profile-accordion-meta {
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(197,154,92,0.12);
+    color: var(--dim);
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+  .profile-accordion-chevron {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--teal);
+    font-size: 18px;
+    line-height: 1;
+    transition: transform 0.2s ease;
+  }
+  .profile-accordion.open .profile-accordion-chevron {
+    transform: rotate(180deg);
+  }
+  .profile-accordion-body {
+    display: none;
+    padding: 4px 18px 16px;
+    border-top: 1px solid rgba(197,154,92,0.09);
+  }
+  .profile-accordion.open .profile-accordion-body {
+    display: block;
   }
   .stat-row {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px;
@@ -643,6 +724,19 @@
     font-size: 9px; letter-spacing: 3px; color: var(--copper);
     text-transform: uppercase; margin-bottom: 10px;
   }
+  .auth-status-title {
+    font-size: 18px;
+    color: var(--text);
+    font-weight: 760;
+    margin-bottom: 8px;
+    line-height: 1.25;
+  }
+  .auth-status-copy {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 8px 0 14px;
+  }
   .auth-status-email { font-size: 14px; color: var(--text); font-weight: 600; }
   .auth-status-plan { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .auth-logout-btn {
@@ -657,6 +751,27 @@
     border: 1px solid rgba(197,154,92,0.3); border-radius: 8px;
     color: var(--copper-soft); font-family: inherit; font-size: 14px;
     cursor: pointer;
+  }
+  .auth-status-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .auth-login-btn.primary {
+    background: linear-gradient(145deg, #d4a45f, #8a6334);
+    color: #fff6df;
+  }
+  .auth-login-btn.secondary {
+    background: rgba(255,255,255,0.035);
+    border-color: rgba(197,154,92,0.16);
+    color: var(--muted);
+  }
+  .auth-note {
+    max-width: 320px;
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: -30px auto 24px;
   }
   #screen-auth {
     z-index: 20; position: fixed; inset: 0;

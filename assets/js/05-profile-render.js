@@ -78,6 +78,7 @@ function startApp(fromStorage) {
   document.getElementById('userSign').textContent = userName + ' — ' + userSign;
 
   buildProfile(userSignIdx, bv);
+  if (typeof updateAuthUI === 'function') updateAuthUI();
   renderBond();
   if (events.length > 0) {
     updateDiary();
@@ -252,12 +253,50 @@ function buildProfile(zi, bv) {
     '</div>' +
     '<div id="profileAuthInline"></div>' +
     '<button onclick="clearStorage()" style="width:100%;padding:14px;background:rgba(220,80,80,0.08);border:0.5px solid rgba(220,80,80,0.2);border-radius:14px;color:#c88080;font-size:14px;cursor:pointer;font-family:inherit;margin-top:8px;">Сбросить локальные данные</button>';
+  setupProfileAccordions();
   bindProfileRows();
+}
+
+function setupProfileAccordions() {
+  document.querySelectorAll('#profileContent .profile-card').forEach(function(card, index) {
+    var labelNode = card.querySelector(':scope > .card-label');
+    if (!labelNode) return;
+
+    var title = labelNode.textContent.trim() || 'Раздел профиля';
+    var rowsCount = card.querySelectorAll(':scope > .stat-row').length;
+    var body = document.createElement('div');
+    body.className = 'profile-accordion-body';
+
+    Array.from(card.childNodes).forEach(function(node) {
+      if (node !== labelNode) body.appendChild(node);
+    });
+
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'profile-accordion-head';
+    button.setAttribute('aria-expanded', index === 0 ? 'true' : 'false');
+    button.innerHTML =
+      '<span class="profile-accordion-title">' + escapeHtml(title) + '</span>' +
+      '<span class="profile-accordion-meta">' + (rowsCount ? rowsCount + ' поз.' : 'схема') + '</span>' +
+      '<span class="profile-accordion-chevron">⌄</span>';
+
+    card.classList.add('profile-accordion');
+    if (index === 0) card.classList.add('open');
+    labelNode.replaceWith(button);
+    card.appendChild(body);
+
+    button.onclick = function() {
+      var isOpen = card.classList.toggle('open');
+      button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+  });
 }
 
 function bindProfileRows() {
   document.querySelectorAll('#profileContent .profile-card').forEach(function(card) {
-    var section = card.querySelector('.card-label')?.textContent.trim() || 'Профиль';
+    var section = card.querySelector('.profile-accordion-title')?.textContent.trim()
+      || card.querySelector('.card-label')?.textContent.trim()
+      || 'Профиль';
     card.querySelectorAll('.stat-row').forEach(function(row) {
       var valueText = row.querySelector('.stat-value')?.textContent.trim() || '';
       if (valueText.length > 28 || valueText.indexOf(',') !== -1) {

@@ -44,7 +44,8 @@
         <input type="date" id="birthInput" style="color-scheme: dark;">
       </div>
       <button class="start-btn" onclick="startApp()">Открыть глаз</button>
-      <div class="hint">Данные нужны для расчёта натальной карты<br>и нумерологического профиля</div>
+      <button class="ghost-start-btn" onclick="showAuthScreen('login')">У меня уже есть профиль</button>
+      <div class="hint">Сначала можно попробовать без аккаунта.<br>Профиль, дневник и чаты сохраним позже.</div>
     </div>
   </div>
 
@@ -151,7 +152,8 @@
           <circle cx="44" cy="44" r="2" fill="#08080f"/>
         </svg>
       </div>
-      <h1 style="font-size:24px;">Вход в Велес</h1>
+      <h1 id="authTitle" style="font-size:24px;">Вход в Велес</h1>
+      <div class="auth-note" id="authNote">Войди, чтобы вернуть сохранённый профиль, дневник и архив диалогов.</div>
       <div id="authForm" data-mode="login">
         <div class="form-group">
           <label class="form-label">Email</label>
@@ -172,7 +174,7 @@
         <div class="auth-error" id="authError"></div>
         <button class="start-btn" id="authSubmitBtn" onclick="submitAuth()">Войти</button>
         <div class="auth-toggle" id="authToggle">
-          Нет аккаунта? <a href="#" onclick="setAuthMode('register'); return false;">Зарегистрироваться</a>
+          Нет аккаунта? <a href="#" onclick="setAuthMode('register'); return false;">Сохранить мой путь</a>
         </div>
         <div class="auth-skip">
           <a href="#" onclick="document.getElementById('screen-auth').classList.remove('active'); return false;">Продолжить без аккаунта</a>
@@ -210,14 +212,14 @@
   </div>
 </div>
 
-<script src="/assets/js/00-auth.js?v=2"></script>
-<script src="/assets/js/01-state-storage.js?v=2"></script>
-<script src="/assets/js/02-esoteric-core.js?v=2"></script>
-<script src="/assets/js/03-profile-bonds.js?v=2"></script>
-<script src="/assets/js/04-oracle-symbols.js?v=2"></script>
-<script src="/assets/js/05-profile-render.js?v=2"></script>
-<script src="/assets/js/06-chat-oracle.js?v=2"></script>
-<script src="/assets/js/07-diary-share-nav.js?v=2"></script>
+<script src="/assets/js/00-auth.js?v=4"></script>
+<script src="/assets/js/01-state-storage.js?v=4"></script>
+<script src="/assets/js/02-esoteric-core.js?v=4"></script>
+<script src="/assets/js/03-profile-bonds.js?v=4"></script>
+<script src="/assets/js/04-oracle-symbols.js?v=4"></script>
+<script src="/assets/js/05-profile-render.js?v=4"></script>
+<script src="/assets/js/06-chat-oracle.js?v=4"></script>
+<script src="/assets/js/07-diary-share-nav.js?v=4"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(function() {});

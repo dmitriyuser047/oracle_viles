@@ -32,26 +32,38 @@ function isLoggedIn() {
   return !!authToken && !!currentUser;
 }
 
-function showAuthScreen() {
+function showAuthScreen(mode) {
+  var nextMode = mode || 'login';
   document.getElementById('screen-auth').classList.add('active');
   document.getElementById('authError').textContent = '';
   document.getElementById('authEmail').value = '';
   document.getElementById('authPassword').value = '';
-  document.getElementById('authName').value = '';
-  document.getElementById('authBirth').value = '';
-  setAuthMode('login');
+  document.getElementById('authName').value = userName || '';
+  document.getElementById('authBirth').value = userBirthValue || '';
+  setAuthMode(nextMode);
 }
 
 function setAuthMode(mode) {
   var isReg = mode === 'register';
+  var hasLocalProfile = !!(userName && userBirthValue);
   document.getElementById('authNameGroup').style.display = isReg ? 'block' : 'none';
   document.getElementById('authBirthGroup').style.display = isReg ? 'block' : 'none';
-  document.getElementById('authSubmitBtn').textContent = isReg ? 'Создать аккаунт' : 'Войти';
+  document.getElementById('authSubmitBtn').textContent = isReg ? 'Сохранить мой путь' : 'Войти';
   document.getElementById('authToggle').innerHTML = isReg
     ? 'Уже есть аккаунт? <a href="#" onclick="setAuthMode(\'login\'); return false;">Войти</a>'
-    : 'Нет аккаунта? <a href="#" onclick="setAuthMode(\'register\'); return false;">Зарегистрироваться</a>';
+    : 'Нет аккаунта? <a href="#" onclick="setAuthMode(\'register\'); return false;">Сохранить мой путь</a>';
   document.getElementById('authForm').setAttribute('data-mode', mode);
   document.getElementById('authError').textContent = '';
+  var title = document.getElementById('authTitle');
+  var note = document.getElementById('authNote');
+  if (title) title.textContent = isReg ? 'Сохранить путь' : 'Вход в Велес';
+  if (note) {
+    note.textContent = isReg
+      ? (hasLocalProfile
+        ? 'Закрепим профиль, дневник, расклады и чаты за аккаунтом.'
+        : 'Создай профиль, чтобы данные не потерялись и были доступны с других устройств.')
+      : 'Войди, чтобы вернуть сохранённый профиль, дневник и архив диалогов.';
+  }
 }
 
 async function submitAuth() {
@@ -148,9 +160,13 @@ function updateAuthUI() {
   } else {
     profileAuth.innerHTML =
       '<div class="auth-status">' +
-        '<div class="auth-status-label">Аккаунт</div>' +
-        '<p style="color:var(--dim);font-size:13px;margin:8px 0;">Войди, чтобы сохранить данные на сервере и использовать с любого устройства.</p>' +
-        '<button class="auth-login-btn" onclick="showAuthScreen()">Войти или создать аккаунт</button>' +
+        '<div class="auth-status-label">Личный профиль</div>' +
+        '<div class="auth-status-title">Сохранить мой путь</div>' +
+        '<p class="auth-status-copy">Велес уже собрал твою карту. Аккаунт сохранит профиль, дневник, расклады, связи и архив чатов на сервере.</p>' +
+        '<div class="auth-status-actions">' +
+          '<button class="auth-login-btn primary" onclick="showAuthScreen(\'register\')">Сохранить мой путь</button>' +
+          '<button class="auth-login-btn secondary" onclick="showAuthScreen(\'login\')">Уже есть профиль</button>' +
+        '</div>' +
       '</div>';
   }
 }
