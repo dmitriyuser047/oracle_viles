@@ -237,6 +237,7 @@ async function shareLink() {
 
 function switchScreen(name) {
   archiveExpiredChats(Date.now(), true);
+  var hasDiaryContent = events.length > 0 || archivedChats.length > 0;
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById('screen-' + name).classList.add('active');
   var tabs = ['oracle','diary','bonds','profile'];
@@ -244,9 +245,9 @@ function switchScreen(name) {
     var isActive = tabs[i] === name;
     n.classList.toggle('active', isActive);
   });
-  document.getElementById('addEntryBtn').style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
+  document.getElementById('addEntryBtn').style.display = name === 'diary' && hasDiaryContent ? 'flex' : 'none';
   var toolbar = document.getElementById('diaryToolbar');
-  if (toolbar) toolbar.style.display = name === 'diary' && events.length > 0 ? 'flex' : 'none';
+  if (toolbar) toolbar.style.display = name === 'diary' && hasDiaryContent ? 'flex' : 'none';
   if (name === 'diary') document.getElementById('diaryDot').style.display = 'none';
   if (name === 'bonds') renderBond();
   if (name === 'profile' && typeof updateAuthUI === 'function') updateAuthUI();

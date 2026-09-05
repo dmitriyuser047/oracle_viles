@@ -15,7 +15,10 @@ const { cleanNonCrisisClinicalReply } = require('./safety');
 
 function normalizeRawReply(text, b) {
   let rawReply = text || 'Звёзды молчат... Попробуй позже.';
-  rawReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  rawReply = rawReply
+    .replace(/<think>[\s\S]*?<\/think>/g, '')
+    .replace(/<[^>]*>/g, '')
+    .trim();
   if (!rawReply) rawReply = 'Звёзды молчат... Попробуй позже.';
 
   if (b.userName) {

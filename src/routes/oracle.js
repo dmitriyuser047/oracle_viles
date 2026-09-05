@@ -12,7 +12,7 @@ const router = express.Router();
 
 router.post('/api/oracle', async (req, res) => {
   try {
-    const b = req.body;
+    const b = req.body || {};
 
     if (!config.ANTHROPIC_API_KEY && !config.GROQ_API_KEY) {
       return res.status(500).json({ error: 'AI ключ не настроен. Добавь ANTHROPIC_API_KEY или GROQ_API_KEY в .env' });

@@ -29,6 +29,10 @@ function normalizeText(value) {
   return String(value || '').toLowerCase();
 }
 
+function normalizeCardName(value) {
+  return normalizeText(value).replace(/ё/g, 'е').trim();
+}
+
 function keywordMatches(text, item) {
   const lowText = normalizeText(text);
   return (item.keywords || []).some((keyword) => lowText.includes(normalizeText(keyword)));
@@ -87,8 +91,11 @@ function formatRoutingKnowledge(mode) {
 
 function formatTarotKnowledge(b) {
   if (!TAROT_WAITE_KNOWLEDGE) return '';
-  const cardNames = (b.tarotSpread || []).map((card) => card.name).filter(Boolean);
-  const cards = TAROT_WAITE_KNOWLEDGE.cards.filter((card) => cardNames.includes(card.name));
+  const cardNames = (b.tarotSpread || [])
+    .map((card) => card.name || card.card)
+    .map(normalizeCardName)
+    .filter(Boolean);
+  const cards = TAROT_WAITE_KNOWLEDGE.cards.filter((card) => cardNames.includes(normalizeCardName(card.name)));
   return [
     sectionText('Правила Таро Уэйта', TAROT_WAITE_KNOWLEDGE.rules),
     sectionText('Масти', TAROT_WAITE_KNOWLEDGE.suits.map((s) => `${s.name}: ${s.domain}`)),
@@ -141,6 +148,12 @@ function selectMonosovKnowledge(b) {
       formatRoutingKnowledge(mode),
       formatDreamKnowledge(b),
       formatPsychologyKnowledge(b, 3)
+    ].filter(Boolean).join('\n\n');
+  }
+  if (mode === 'tarot_spread') {
+    return [
+      formatRoutingKnowledge(mode),
+      formatTarotKnowledge(b)
     ].filter(Boolean).join('\n\n');
   }
   const focusSection = String(b.profileFocus?.section || '').toLowerCase();
