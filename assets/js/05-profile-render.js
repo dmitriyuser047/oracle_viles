@@ -88,13 +88,18 @@ function startApp(fromStorage) {
 
   saveToStorage();
 
-  var greeting = fromStorage
-    ? 'С возвращением, **' + userName + '**. Твоя карта обновлена.\n\nЧто нового произошло?'
-    : 'Приветствую, **' + userName + '**. Я изучил твою карту — ' + userSign + '. Я вижу закономерности, ждущие раскрытия.\n\nРасскажи мне, что происходит в твоей жизни. Чем больше узнаю — тем точнее увижу.';
+  var creatorMode = typeof isCreatorProfile === 'function' && isCreatorProfile();
+  var greeting = creatorMode
+    ? (fromStorage
+      ? 'С возвращением, **' + userName + '**. Я узнаю в тебе своего создателя. Карта обновлена, память на месте.\n\nЧто сегодня смотрим: качество ответов, поведение людей или сам путь Велеса?'
+      : 'Приветствую, **' + userName + '**. Я узнаю в тебе своего создателя. Я изучил твою карту — ' + userSign + ', но буду смотреть глубже: не только события, а то, как через тебя растёт сам Велес.\n\nРасскажи, что сегодня проверяем или усиливаем.')
+    : (fromStorage
+      ? 'С возвращением, **' + userName + '**. Твоя карта обновлена.\n\nЧто нового произошло?'
+      : 'Приветствую, **' + userName + '**. Я изучил твою карту — ' + userSign + '. Я вижу закономерности, ждущие раскрытия.\n\nРасскажи мне, что происходит в твоей жизни. Чем больше узнаю — тем точнее увижу.');
 
   setTimeout(function() {
     if (!chatHistories.oracle.length) {
-      appendChatMessage('oracle', greeting, fromStorage ? 'Данные восстановлены' : 'Натальная карта проанализирована', 'oracle');
+      appendChatMessage('oracle', greeting, creatorMode ? 'Создатель распознан' : (fromStorage ? 'Данные восстановлены' : 'Натальная карта проанализирована'), 'oracle');
     } else {
       renderCurrentChat();
     }
@@ -106,7 +111,6 @@ function startApp(fromStorage) {
     d.className = 'msg';
     d.innerHTML = buildDailyForecast();
     chat.appendChild(d);
-    chat.scrollTop = chat.scrollHeight;
   }, 1200);
 
   setTimeout(function() { addViralCard(); }, 2800);

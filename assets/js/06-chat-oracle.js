@@ -314,6 +314,7 @@ function buildEsotericContext(message) {
 
   return {
     userName: userName,
+    isCreator: typeof isCreatorProfile === 'function' ? isCreatorProfile() : false,
     birthDate: bv,
     zodiac: signsRu[userSignIdx],
     element: elements[userSignIdx],

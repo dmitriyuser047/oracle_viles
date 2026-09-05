@@ -1,4 +1,4 @@
-var CACHE = 'veles-v6';
+var CACHE = 'veles-v9';
 var ASSETS = [
   '/',
   '/index.html',

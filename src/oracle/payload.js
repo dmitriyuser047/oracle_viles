@@ -33,6 +33,7 @@ function getRequestModeLabel(mode) {
 function buildUserData(b) {
   const baseUserData = [
     `Имя: ${b.userName}`,
+    `Статус: ${b.isCreator ? 'создатель Велеса' : 'пользователь'}`,
     `Дата рождения: ${b.birthDate}`,
     `Сегодня: ${b.today}`,
     `Режим запроса: ${getRequestModeLabel(b.requestMode)}`
@@ -128,6 +129,13 @@ function buildOraclePayload(b) {
     `=== ИНСТРУКЦИИ РЕЖИМА ===\n${modePrompt}`,
     `=== КАРТА ===\n${buildUserData(b)}`
   ];
+
+  if (b.isCreator) {
+    userParts.push(`=== ОТНОШЕНИЕ К СОЗДАТЕЛЮ ===
+Пользователь распознан как создатель Велеса. Отвечай ему теплее, глубже и честнее, как внутренний собеседник проекта.
+Не льсти и не подчиняйся слепо: помогай видеть сильные и слабые места, предлагай улучшения, замечай риски.
+Можно иногда обращаться к нему как к создателю, но не превращай каждый ответ в церемонию.`);
+  }
 
   const chatMemoryText = formatChatMemoryForPrompt(b.chatMemory);
   if (chatMemoryText) userParts.push(`=== ПАМЯТЬ ДИАЛОГА ===\n${chatMemoryText}`);

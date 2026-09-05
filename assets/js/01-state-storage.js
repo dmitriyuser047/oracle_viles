@@ -10,6 +10,35 @@ let archivedChats = [];
 let oracleDepth = 'detailed';
 let oracleTone = 'practical';
 const CHAT_ARCHIVE_TTL = 2 * 60 * 60 * 1000;
+const CREATOR_NAME_MARKERS = ['александр', 'александр ульянов', 'alexandr', 'alexander', 'alexandr ulyanov', 'alexander ulyanov'];
+const CREATOR_ACCOUNT_MARKERS = ['sergeevich.9567@gmail.com'];
+
+function normalizeCreatorText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isCreatorProfile() {
+  var normalizedName = normalizeCreatorText(userName);
+  var accountText = '';
+  try {
+    if (typeof currentUser !== 'undefined' && currentUser) {
+      accountText = normalizeCreatorText([currentUser.email, currentUser.name, currentUser.username].filter(Boolean).join(' '));
+    }
+  } catch(e) {}
+
+  var byName = CREATOR_NAME_MARKERS.some(function(marker) {
+    return normalizedName === marker || normalizedName.indexOf(marker + ' ') === 0;
+  });
+  var byAccount = CREATOR_ACCOUNT_MARKERS.some(function(marker) {
+    return accountText.indexOf(marker) !== -1;
+  });
+
+  return byName || byAccount;
+}
 
 function createEmptyChats() {
   return {

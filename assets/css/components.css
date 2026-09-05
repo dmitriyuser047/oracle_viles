@@ -1,6 +1,7 @@
 /* Chat */
   .chat-area {
-    flex: 1; overflow-y: auto; padding: 16px 16px 8px;
+    flex: 0 1 auto; overflow-y: auto; padding: 16px 16px 8px;
+    max-height: min(46dvh, 430px);
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
@@ -813,6 +814,7 @@
       width: min(760px, 100%);
       margin: 0 auto;
       padding: 22px 0 12px;
+      max-height: min(48vh, 440px);
     }
 
     .msg-oracle {
