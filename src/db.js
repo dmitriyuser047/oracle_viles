@@ -1,86 +1,160 @@
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
 const config = require('./config');
 
 if (!fs.existsSync(config.DATA_DIR)) {
   fs.mkdirSync(config.DATA_DIR, { recursive: true });
 }
 
-const DB_PATH = path.join(config.DATA_DIR, 'veles.db');
-const db = new Database(DB_PATH);
+const STORE_PATH = path.join(config.DATA_DIR, 'veles-store.json');
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+function createEmptyStore() {
+  return {
+    nextUserId: 1,
+    nextRequestId: 1,
+    users: [],
+    userData: {},
+    requestLog: []
+  };
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    name TEXT NOT NULL,
-    birth_date TEXT NOT NULL,
-    plan TEXT DEFAULT 'free',
-    daily_limit INTEGER DEFAULT 15,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
+function readStore() {
+  try {
+    if (!fs.existsSync(STORE_PATH)) return createEmptyStore();
+    const parsed = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+    return {
+      nextUserId: parsed.nextUserId || 1,
+      nextRequestId: parsed.nextRequestId || 1,
+      users: Array.isArray(parsed.users) ? parsed.users : [],
+      userData: parsed.userData && typeof parsed.userData === 'object' ? parsed.userData : {},
+      requestLog: Array.isArray(parsed.requestLog) ? parsed.requestLog : []
+    };
+  } catch (err) {
+    console.error('DB read error:', err);
+    return createEmptyStore();
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS user_data (
-    user_id INTEGER PRIMARY KEY,
-    profile_json TEXT DEFAULT '{}',
-    events_json TEXT DEFAULT '[]',
-    chats_json TEXT DEFAULT '{}',
-    archived_chats_json TEXT DEFAULT '[]',
-    bond_json TEXT,
-    settings_json TEXT DEFAULT '{}',
-    updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+function writeStore(store) {
+  const tmpPath = STORE_PATH + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(store, null, 2), 'utf8');
+  fs.renameSync(tmpPath, STORE_PATH);
+}
 
-  CREATE TABLE IF NOT EXISTS request_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    request_mode TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+function mutateStore(mutator) {
+  const store = readStore();
+  const result = mutator(store);
+  writeStore(store);
+  return result;
+}
 
-  CREATE INDEX IF NOT EXISTS idx_request_log_user_date
-    ON request_log(user_id, created_at);
-`);
+function toPublicUser(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    birth_date: user.birth_date,
+    plan: user.plan || 'free',
+    daily_limit: user.daily_limit || 15,
+    created_at: user.created_at
+  };
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
 
 const stmts = {
-  createUser: db.prepare(
-    'INSERT INTO users (email, password_hash, name, birth_date) VALUES (?, ?, ?, ?)'
-  ),
-  findUserByEmail: db.prepare(
-    'SELECT * FROM users WHERE email = ?'
-  ),
-  findUserById: db.prepare(
-    'SELECT id, email, name, birth_date, plan, daily_limit, created_at FROM users WHERE id = ?'
-  ),
-  upsertUserData: db.prepare(`
-    INSERT INTO user_data (user_id, profile_json, events_json, chats_json, archived_chats_json, bond_json, settings_json, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(user_id) DO UPDATE SET
-      profile_json = excluded.profile_json,
-      events_json = excluded.events_json,
-      chats_json = excluded.chats_json,
-      archived_chats_json = excluded.archived_chats_json,
-      bond_json = excluded.bond_json,
-      settings_json = excluded.settings_json,
-      updated_at = datetime('now')
-  `),
-  getUserData: db.prepare(
-    'SELECT * FROM user_data WHERE user_id = ?'
-  ),
-  countTodayRequests: db.prepare(
-    "SELECT COUNT(*) as cnt FROM request_log WHERE user_id = ? AND created_at >= date('now')"
-  ),
-  logRequest: db.prepare(
-    'INSERT INTO request_log (user_id, request_mode) VALUES (?, ?)'
-  )
+  createUser: {
+    run(email, passwordHash, name, birthDate) {
+      return mutateStore((store) => {
+        if (store.users.some((user) => user.email === email)) {
+          const err = new Error('UNIQUE constraint failed: users.email');
+          err.code = 'SQLITE_CONSTRAINT_UNIQUE';
+          throw err;
+        }
+        const now = new Date().toISOString();
+        const id = store.nextUserId++;
+        store.users.push({
+          id,
+          email,
+          password_hash: passwordHash,
+          name,
+          birth_date: birthDate,
+          plan: 'free',
+          daily_limit: 15,
+          created_at: now,
+          updated_at: now
+        });
+        return { lastInsertRowid: id };
+      });
+    }
+  },
+  findUserByEmail: {
+    get(email) {
+      return readStore().users.find((user) => user.email === email) || null;
+    }
+  },
+  findUserById: {
+    get(id) {
+      const numericId = Number(id);
+      const user = readStore().users.find((item) => item.id === numericId);
+      return toPublicUser(user);
+    }
+  },
+  upsertUserData: {
+    run(userId, profileJson, eventsJson, chatsJson, archivedChatsJson, bondJson, settingsJson) {
+      return mutateStore((store) => {
+        const id = String(userId);
+        store.userData[id] = {
+          user_id: Number(userId),
+          profile_json: profileJson || '{}',
+          events_json: eventsJson || '[]',
+          chats_json: chatsJson || '{}',
+          archived_chats_json: archivedChatsJson || '[]',
+          bond_json: bondJson || null,
+          settings_json: settingsJson || '{}',
+          updated_at: new Date().toISOString()
+        };
+        return { changes: 1 };
+      });
+    }
+  },
+  getUserData: {
+    get(userId) {
+      return readStore().userData[String(userId)] || null;
+    }
+  },
+  countTodayRequests: {
+    get(userId) {
+      const since = startOfToday();
+      const numericId = Number(userId);
+      const cnt = readStore().requestLog.filter((item) => {
+        return item.user_id === numericId && new Date(item.created_at).getTime() >= since;
+      }).length;
+      return { cnt };
+    }
+  },
+  logRequest: {
+    run(userId, requestMode) {
+      return mutateStore((store) => {
+        const id = store.nextRequestId++;
+        store.requestLog.push({
+          id,
+          user_id: Number(userId),
+          request_mode: requestMode || 'oracle',
+          created_at: new Date().toISOString()
+        });
+        return { lastInsertRowid: id };
+      });
+    }
+  }
 };
 
-module.exports = { db, stmts };
+module.exports = {
+  db: null,
+  stmts
+};
