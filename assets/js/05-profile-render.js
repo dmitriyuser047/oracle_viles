@@ -264,6 +264,7 @@ function setupProfileAccordions() {
 
     var title = labelNode.textContent.trim() || 'Раздел профиля';
     var rowsCount = card.querySelectorAll(':scope > .stat-row').length;
+    var normalizedTitle = title.toLowerCase();
     var body = document.createElement('div');
     body.className = 'profile-accordion-body';
 
@@ -281,6 +282,9 @@ function setupProfileAccordions() {
       '<span class="profile-accordion-chevron">⌄</span>';
 
     card.classList.add('profile-accordion');
+    if (rowsCount >= 7 || normalizedTitle.indexOf('матриц') !== -1 || normalizedTitle.indexOf('наталь') !== -1) {
+      card.classList.add('profile-accordion-wide');
+    }
     if (index === 0) card.classList.add('open');
     labelNode.replaceWith(button);
     card.appendChild(body);

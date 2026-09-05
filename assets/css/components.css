@@ -468,6 +468,8 @@
     box-shadow: 0 14px 42px rgba(0,0,0,0.22);
   }
   .profile-card.profile-accordion {
+    display: flex;
+    flex-direction: column;
     padding: 0;
     overflow: hidden;
   }
@@ -804,4 +806,164 @@
   #screen-auth:not(.active) { display: none; }
   .start-btn:disabled {
     opacity: 0.5; cursor: not-allowed;
+  }
+
+  @media (min-width: 900px) {
+    .chat-area {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: 22px 0 12px;
+    }
+
+    .msg-oracle {
+      max-width: 78%;
+    }
+
+    .msg-user {
+      max-width: 68%;
+    }
+
+    .composer {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      background: linear-gradient(transparent 0%, rgba(2,5,10,0.94) 28%);
+    }
+
+    .oracle-settings,
+    .oracle-modes,
+    .input-bar {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .oracle-modes {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    #modeDream {
+      grid-column: auto;
+    }
+
+    .mode-btn {
+      height: 40px;
+    }
+
+    .input-bar {
+      padding-bottom: 22px;
+    }
+
+    .nav {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 0 18px;
+      border-top: 1px solid rgba(155,217,255,0.12);
+      background: rgba(2,5,10,0.74);
+    }
+
+    .nav-item {
+      min-width: 112px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border: 1px solid transparent;
+    }
+
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      margin-bottom: 0;
+    }
+
+    .nav-item .nav-label {
+      font-size: 12px;
+    }
+
+    .nav-item.active {
+      border-color: rgba(155,217,255,0.18);
+      background: rgba(155,217,255,0.06);
+    }
+
+    .onboarding {
+      max-width: 430px;
+      margin: 0 auto;
+    }
+
+    .diary-list,
+    .diary-detail,
+    .bonds-content {
+      width: min(940px, 100%);
+      margin: 0 auto;
+      padding-left: 0;
+      padding-right: 0;
+      padding-bottom: 88px;
+    }
+
+    .profile-content {
+      width: min(860px, 100%);
+      margin: 0 auto;
+      padding-left: 0;
+      padding-right: 0;
+      padding-bottom: 88px;
+    }
+
+    .profile-card {
+      margin-bottom: 12px;
+    }
+
+    .profile-accordion-body {
+      max-height: 460px;
+      overflow-y: auto;
+    }
+
+    .diary-patterns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .diary-section-label,
+    .diary-pattern-empty {
+      grid-column: 1 / -1;
+    }
+
+    .diary-pattern {
+      margin-bottom: 0;
+    }
+
+    .diary-toolbar {
+      width: min(940px, 100%);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .bonds-content {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      align-content: start;
+      gap: 18px;
+    }
+
+    .bond-empty,
+    .bond-form {
+      grid-column: 1;
+    }
+
+    #bondResult {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      min-width: 0;
+    }
+
+    .add-entry-btn {
+      right: calc(50% - 470px);
+      bottom: 82px;
+    }
+
+    .toast {
+      top: 34px;
+    }
   }

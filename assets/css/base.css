@@ -114,3 +114,47 @@
   .header-sub::before, .header-sub::after {
     content: ''; width: 18px; height: 1px; background: rgba(197,154,92,0.28);
   }
+
+  @media (min-width: 900px) {
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(124,231,255,0.16), transparent 30%),
+        radial-gradient(circle at 82% 22%, rgba(123,140,255,0.14), transparent 32%),
+        linear-gradient(135deg, #02050a 0%, #06111b 48%, #010306 100%);
+    }
+
+    .app {
+      width: min(1180px, calc(100vw - 48px));
+      max-width: 1180px;
+      min-height: calc(100vh - 48px);
+      height: calc(100vh - 48px);
+      margin: 24px auto;
+      border-radius: 18px;
+      border: 1px solid rgba(155,217,255,0.14);
+      overflow: hidden;
+    }
+
+    .app::before,
+    .app::after {
+      width: min(1180px, calc(100vw - 48px));
+      border-radius: 18px 18px 0 0;
+    }
+
+    .screen {
+      min-height: 0;
+    }
+
+    .header {
+      padding: 38px 40px 18px;
+    }
+
+    .header-title {
+      font-size: 34px;
+    }
+
+    .screen-title {
+      padding-top: 38px;
+    }
+  }
