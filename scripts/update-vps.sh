@@ -31,6 +31,21 @@ git fetch origin "$BRANCH"
 echo "==> Resetting local code to origin/${BRANCH}"
 git reset --hard "origin/${BRANCH}"
 
+echo "==> Stopping PM2 app for data migration"
+if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
+  pm2 stop "$PM2_APP" || true
+fi
+
+if [ -f "data/veles.db" ] && [ ! -f "data/veles-store.json" ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    echo "==> Migrating SQLite data to JSON store"
+    APP_DIR="$APP_DIR" python3 scripts/migrate-sqlite-to-json.py
+  else
+    echo "Error: python3 is required to migrate data/veles.db to data/veles-store.json" >&2
+    exit 1
+  fi
+fi
+
 echo "==> Installing production dependencies"
 npm ci --omit=dev
 
