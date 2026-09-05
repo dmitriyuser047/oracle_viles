@@ -436,11 +436,14 @@ const totemAnimals = [
   }
 ];
 
-function getTotemAnimal(dateStr, signIdx) {
+function getTotemAnimal(dateStr, signIdx, name) {
   var digits = String(dateStr || '').replace(/-/g,'').split('').reduce(function(sum, part) {
     return sum + (parseInt(part, 10) || 0);
   }, 0);
-  var seed = digits + lifePathNumber(dateStr) * 3 + (signIdx + 1) * 5 + userName.length;
+  var nameSeed = normalizeCreatorText(name || userName || '').split('').reduce(function(sum, ch) {
+    return sum + ch.charCodeAt(0);
+  }, 0);
+  var seed = digits + lifePathNumber(dateStr) * 3 + (signIdx + 1) * 5 + nameSeed;
   return totemAnimals[Math.abs(seed) % totemAnimals.length];
 }
 

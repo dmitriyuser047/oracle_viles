@@ -140,7 +140,7 @@ function buildProfile(zi, bv) {
   var dr = dailyRune(new Date());
   var bc = birthChakra(bv);
   var ac = activeChakra(bv, bd, bm);
-  var totem = getTotemAnimal(bv, zi);
+  var totem = getTotemAnimal(bv, zi, userName);
   var signProfile = signProfiles[zi];
 
   var pc = document.getElementById('profileContent');

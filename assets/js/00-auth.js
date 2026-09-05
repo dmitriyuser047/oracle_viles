@@ -173,14 +173,16 @@ function updateAuthUI() {
     var limitText = currentUser.isCreator
       ? 'Без дневного лимита'
       : (used + ' / ' + (limit || 15) + ' запросов сегодня');
-    var planText = currentUser.isCreator
-      ? 'Создатель'
-      : (currentUser.isAlly ? 'Союзник' : (currentUser.plan === 'free' ? 'Бесплатный' : 'Премиум'));
+    var accountLine = currentUser.isCreator
+      ? 'Статус: Создатель · ' + limitText
+      : (currentUser.isAlly
+        ? 'Статус: Своя Фея среди Велеса · Велес внимательно слушает'
+        : 'Тариф: ' + (currentUser.plan === 'free' ? 'Бесплатный' : 'Премиум') + ' · ' + limitText);
     profileAuth.innerHTML =
       '<div class="auth-status">' +
         '<div class="auth-status-label">Аккаунт</div>' +
         '<div class="auth-status-email">' + escapeHtml(currentUser.email) + '</div>' +
-        '<div class="auth-status-plan">Тариф: ' + escapeHtml(planText) + ' · ' + escapeHtml(limitText) + '</div>' +
+        '<div class="auth-status-plan">' + escapeHtml(accountLine) + '</div>' +
         '<button class="auth-logout-btn" onclick="logout()">Выйти</button>' +
       '</div>';
   } else {

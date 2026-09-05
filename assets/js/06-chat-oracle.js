@@ -309,7 +309,7 @@ function buildEsotericContext(message) {
   var dr = dailyRune(new Date());
   var bc = birthChakra(bv);
   var ac = activeChakra(bv, bd, bm);
-  var totem = getTotemAnimal(bv, userSignIdx);
+  var totem = getTotemAnimal(bv, userSignIdx, userName);
   var engine = buildOracleEngine(message || '', bv, bd, bm);
 
   return {
