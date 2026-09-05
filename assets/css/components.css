@@ -144,6 +144,7 @@
   .oracle-modes {
     padding: 12px 16px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
   }
+  #modeDream { grid-column: 1 / -1; }
   .mode-btn {
     height: 38px; border-radius: 8px; border: 1px solid rgba(197,154,92,0.14);
     background: rgba(255,255,255,0.035); color: var(--muted); font-size: 13px;
@@ -222,6 +223,8 @@
   .onboarding {
     flex: 1; display: flex; flex-direction: column;
     align-items: center; justify-content: center;
+    width: 100%;
+    min-width: 0;
     padding: 40px 28px; text-align: center;
   }
   .eye-symbol { margin-bottom: 28px; position: relative; }
@@ -240,7 +243,12 @@
   .onboarding .subtitle {
     font-size: 14px; color: var(--muted); margin-bottom: 44px; line-height: 1.6;
   }
-  .onboarding .form-group { width: 100%; margin-bottom: 14px; position: relative; }
+  .onboarding .form-group {
+    width: 100%;
+    max-width: 340px;
+    margin-bottom: 14px;
+    position: relative;
+  }
   .onboarding .form-label {
     font-size: 11px; color: var(--copper); letter-spacing: 1px;
     text-transform: uppercase; text-align: left;
@@ -256,7 +264,7 @@
   .onboarding input::placeholder { color: #5d5f58; }
   .onboarding input:focus { border-color: rgba(224,189,122,0.52); background: rgba(13,18,16,0.92); }
   .start-btn {
-    width: 100%; padding: 17px;
+    width: 100%; max-width: 340px; padding: 17px;
     background: linear-gradient(145deg, #d4a45f, #8a6334);
     border: 1px solid rgba(255,235,185,0.18); border-radius: 8px;
     color: #fff6df; font-size: 16px; font-weight: 720;
@@ -268,6 +276,7 @@
   .start-btn:hover { box-shadow: 0 6px 30px rgba(224,189,122,0.28); }
   .ghost-start-btn {
     width: 100%;
+    max-width: 340px;
     padding: 14px;
     margin-top: 10px;
     border-radius: 8px;
@@ -720,6 +729,10 @@
     border: 1px solid rgba(197,154,92,0.14);
     border-radius: 8px; padding: 18px; margin: 0 16px 12px;
   }
+  .profile-content .auth-status {
+    margin-left: 0;
+    margin-right: 0;
+  }
   .auth-status-label {
     font-size: 9px; letter-spacing: 3px; color: var(--copper);
     text-transform: uppercase; margin-bottom: 10px;
@@ -771,12 +784,22 @@
     color: var(--muted);
     font-size: 13.5px;
     line-height: 1.55;
-    margin: -30px auto 24px;
+    margin: 0 auto 24px;
   }
   #screen-auth {
     z-index: 20; position: fixed; inset: 0;
     background: var(--bg);
     overflow-y: auto;
+  }
+  #screen-auth .onboarding {
+    justify-content: flex-start;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: 56px;
+    padding-bottom: 34px;
+  }
+  #screen-auth .eye-symbol {
+    margin-bottom: 16px;
   }
   #screen-auth:not(.active) { display: none; }
   .start-btn:disabled {

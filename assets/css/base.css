@@ -30,6 +30,7 @@
   }
 
   .app {
+    width: min(430px, 100vw);
     max-width: 430px;
     margin: 0 auto;
     min-height: 100vh;

@@ -29,6 +29,7 @@
   }
   .msg-oracle,
   .profile-card,
+  .auth-status,
   .diary-entry,
   .diary-pattern,
   .forecast-card,
@@ -45,6 +46,8 @@
     border-color: rgba(155,217,255,.22) !important;
   }
   .mode-btn,
+  .ghost-start-btn,
+  .auth-login-btn.secondary,
   .input-bar input,
   .onboarding input {
     background: rgba(255,255,255,.045) !important;
@@ -52,6 +55,7 @@
   }
   .mode-btn.active,
   .start-btn,
+  .auth-login-btn.primary,
   .send-btn,
   .invite-btn {
     background: linear-gradient(145deg,#d2f0ff,#70b7dd 54%,#5467d7) !important;
