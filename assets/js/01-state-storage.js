@@ -12,6 +12,7 @@ let oracleTone = 'practical';
 const CHAT_ARCHIVE_TTL = 2 * 60 * 60 * 1000;
 const CREATOR_NAME_MARKERS = ['александр', 'александр ульянов', 'alexandr', 'alexander', 'alexandr ulyanov', 'alexander ulyanov'];
 const CREATOR_ACCOUNT_MARKERS = ['sergeevich.9567@gmail.com'];
+const ALLY_NAME_MARKERS = ['тася'];
 
 function normalizeCreatorText(value) {
   return String(value || '')
@@ -38,6 +39,14 @@ function isCreatorProfile() {
   });
 
   return byName || byAccount;
+}
+
+function isAllyProfile() {
+  if (isCreatorProfile()) return false;
+  var normalizedName = normalizeCreatorText(userName);
+  return ALLY_NAME_MARKERS.some(function(marker) {
+    return normalizedName === marker || normalizedName.indexOf(marker + ' ') === 0;
+  });
 }
 
 function createEmptyChats() {

@@ -165,7 +165,7 @@ function updateAuthUI() {
       : (used + ' / ' + (limit || 15) + ' запросов сегодня');
     var planText = currentUser.isCreator
       ? 'Создатель'
-      : (currentUser.plan === 'free' ? 'Бесплатный' : 'Премиум');
+      : (currentUser.isAlly ? 'Союзник' : (currentUser.plan === 'free' ? 'Бесплатный' : 'Премиум'));
     profileAuth.innerHTML =
       '<div class="auth-status">' +
         '<div class="auth-status-label">Аккаунт</div>' +

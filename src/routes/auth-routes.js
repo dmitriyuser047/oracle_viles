@@ -1,7 +1,7 @@
 const express = require('express');
 const { stmts } = require('../db');
 const { hashPassword, checkPassword, createToken, authMiddleware } = require('../auth');
-const { isCreatorEmail, getPublicLimit } = require('../creator');
+const { isCreatorEmail, isAllyProfile, getPublicLimit } = require('../creator');
 
 const router = express.Router();
 
@@ -28,6 +28,7 @@ router.post('/api/register', (req, res) => {
     const result = stmts.createUser.run(emailClean, hashPassword(password), name.trim(), birthDate);
     const token = createToken(result.lastInsertRowid);
     const isCreator = isCreatorEmail(emailClean);
+    const isAlly = isAllyProfile(emailClean, name.trim());
     res.json({
       token,
       user: {
@@ -38,6 +39,7 @@ router.post('/api/register', (req, res) => {
         plan: isCreator ? 'creator' : 'free',
         dailyLimit: isCreator ? null : 15,
         isCreator,
+        isAlly,
         todayRequests: 0
       }
     });
@@ -60,6 +62,7 @@ router.post('/api/login', (req, res) => {
 
   const token = createToken(user.id);
   const isCreator = isCreatorEmail(user.email);
+  const isAlly = isAllyProfile(user.email, user.name);
   res.json({
     token,
     user: {
@@ -70,6 +73,7 @@ router.post('/api/login', (req, res) => {
       plan: isCreator ? 'creator' : user.plan,
       dailyLimit: getPublicLimit(user),
       isCreator,
+      isAlly,
       todayRequests: isCreator ? 0 : stmts.countTodayRequests.get(user.id).cnt
     }
   });
@@ -80,6 +84,7 @@ router.get('/api/me', authMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
   const isCreator = isCreatorEmail(user.email);
+  const isAlly = isAllyProfile(user.email, user.name);
   const todayCount = isCreator ? 0 : stmts.countTodayRequests.get(req.userId).cnt;
   res.json({
     user: {
@@ -90,6 +95,7 @@ router.get('/api/me', authMiddleware, (req, res) => {
       plan: isCreator ? 'creator' : user.plan,
       dailyLimit: getPublicLimit(user),
       isCreator,
+      isAlly,
       todayRequests: todayCount
     },
     usage: {

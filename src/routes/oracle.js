@@ -7,7 +7,7 @@ const { buildOraclePayload } = require('../oracle/payload');
 const { cleanOracleReply } = require('../oracle/reply-pipeline');
 const { stmts } = require('../db');
 const { verifyToken } = require('../auth');
-const { isCreatorEmail, getPublicLimit } = require('../creator');
+const { isCreatorEmail, isAllyProfile, getPublicLimit } = require('../creator');
 
 const router = express.Router();
 
@@ -22,6 +22,7 @@ router.post('/api/oracle', async (req, res) => {
     let userId = null;
     let authUser = null;
     let isCreator = false;
+    let isAlly = false;
     let todayCount = 0;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -31,6 +32,7 @@ router.post('/api/oracle', async (req, res) => {
         authUser = stmts.findUserById.get(userId);
         if (authUser) {
           isCreator = isCreatorEmail(authUser.email);
+          isAlly = isAllyProfile(authUser.email, authUser.name);
           todayCount = isCreator ? 0 : stmts.countTodayRequests.get(userId).cnt;
           if (!isCreator && todayCount >= authUser.daily_limit) {
             return res.status(429).json({
@@ -42,6 +44,9 @@ router.post('/api/oracle', async (req, res) => {
         }
       }
     }
+
+    b.isCreator = isCreator || b.isCreator === true;
+    b.isAlly = isAlly || b.isAlly === true;
 
     const payload = buildOraclePayload(b);
     const baseTokens = getMaxTokensForMode(b.requestMode);
