@@ -31,7 +31,14 @@ app.use('/api/', apiLimiter);
 
 app.use(express.static(config.STATIC_DIR, {
   maxAge: '1h',
-  etag: true
+  etag: true,
+  setHeaders(res, filePath) {
+    // index.html хранит указатели версий (?v=N), sw.js — имя кэша.
+    // Если их закэшировать, бамп версии не дойдёт до вернувшихся пользователей.
+    if (/\.html$/i.test(filePath) || /(^|[\\/])sw\.js$/i.test(filePath) || /manifest\.json$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
 }));
 
 app.get('/health', (req, res) => {
