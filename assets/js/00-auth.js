@@ -134,7 +134,7 @@ async function submitAuth() {
 
     if (mode === 'register') {
       applyCurrentUserProfile(true);
-      startApp();
+      startApp(true);
     } else {
       await loadServerData();
       applyCurrentUserProfile(true);
